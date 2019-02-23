@@ -8,7 +8,7 @@ require_once(DATACLASSDIR . '/User.php');
 require_once(DATACLASSDIR . '/Source.php');
 require_once(DATACLASSDIR . '/Url.php');
 require_once(DATACLASSDIR . '/Media.php');
-require_once(DATACLASSDIR . '/Tweet.php');
+require_once(DATACLASSDIR . '/Status.php');
 
 /*** config ***/
 $jsFilesDir = dirname(__FILE__) . '/../twitterdata/data/js/tweets/';
@@ -53,7 +53,7 @@ $db->exec('CREATE TABLE urls (
     display_url TEXT NOT NULL,
     UNIQUE(url, expanded_url, display_url)
 )');
-$db->exec('CREATE TABLE tweets (
+$db->exec('CREATE TABLE statuses (
     id INTEGER NOT NULL UNIQUE,
     text TEXT NOT NULL,
     created_at INTEGER NOT NULL,
@@ -66,7 +66,7 @@ $db->exec('CREATE TABLE tweets (
     media_ids TEXT,
     url_ids TEXT,
     source_id INTEGER NOT NULL,
-    retweeted_tweet_id INTEGER
+    retweeted_status_id INTEGER
 )');
 
 $count = 0;
@@ -76,10 +76,10 @@ foreach(glob("${jsFilesDir}/*.js") as $js){
     $rawJson = preg_replace('/Grailbird\.data\.tweets_\d{4}_\d{2}\s*?=/', '', $rawJson);
     $json = array_reverse(json_decode($rawJson, true));
     foreach($json as $j){
-        $tweet = new Tweet($j);
-        tweetJson2db($db, $tweet);
-        if($tweet->getRetweetedTweet() !== null){
-            tweetJson2db($db, $tweet->getRetweetedTweet());
+        $status = new Status($j);
+        statusJson2db($db, $status);
+        if($status->getRetweetedStatus() !== null){
+            statusJson2db($db, $status->getRetweetedStatus());
         }
         $count++;
         echo "\r${count} tweets done";
@@ -89,30 +89,30 @@ foreach(glob("${jsFilesDir}/*.js") as $js){
 $db->exec('COMMIT');
 echo "\n";
 
-function tweetJson2db(SQLite3 $db, Tweet $tweet){
+function statusJson2db(SQLite3 $db, Status $status){
     /*** Add User ***/
-    addUser($db, $tweet->getUser());
+    addUser($db, $status->getUser());
 
     /*** Add User Mentions ***/
-    foreach($tweet->getUserMentions() as $mention){
+    foreach($status->getUserMentions() as $mention){
         addUserMention($db, $mention);
     }
 
     /*** Add Source ***/
-    addSource($db, $tweet->getSource());
+    addSource($db, $status->getSource());
 
     /*** Add Medias ***/
-    foreach($tweet->getMedias() as $media){
+    foreach($status->getMedias() as $media){
         addMedia($db, $media);
     }
 
     /*** Add Urls ***/
-    foreach($tweet->getUrls() as $url){
+    foreach($status->getUrls() as $url){
         addUrl($db, $url);
     }
 
-    /*** Add Tweet ***/
-    addTweet($db, $tweet);
+    /*** Add Status ***/
+    addStatus($db, $status);
 }
 
 function bool2int(bool $b): int{
@@ -194,20 +194,20 @@ function addUrl(SQLite3 $db, Url $url){
     }
 }
 
-function addTweet(SQLite3 $db, Tweet $tweet){
+function addStatus(SQLite3 $db, Status $status){
     try{
-        $stmt = $db->prepare('INSERT OR IGNORE INTO tweets VALUES (
+        $stmt = $db->prepare('INSERT OR IGNORE INTO statuses VALUES (
             :id, :text, :created_at,
             :in_reply_to_status_id, :in_reply_to_user_id, :in_reply_to_screen_name,
             :geo, :user_id, :user_mention_ids, :media_ids, :url_ids,
                 (SELECT id FROM sources WHERE name = :source_name AND url = :source_url),
-            :retweeted_tweet_id
+            :retweeted_status_id
         )');
-        $stmt->bindValue(':id', $tweet->getId(), SQLITE3_INTEGER);
-        $stmt->bindValue(':text', $tweet->getText(), SQLITE3_TEXT);
-        $stmt->bindValue(':created_at', $tweet->getCreatedAt(), SQLITE3_INTEGER);
+        $stmt->bindValue(':id', $status->getId(), SQLITE3_INTEGER);
+        $stmt->bindValue(':text', $status->getText(), SQLITE3_TEXT);
+        $stmt->bindValue(':created_at', $status->getCreatedAt(), SQLITE3_INTEGER);
 
-        $inReplyTo = $tweet->getInReplyTo();
+        $inReplyTo = $status->getInReplyTo();
         if($inReplyTo->getInReplyToStatusId() === null){
             $stmt->bindValue(':in_reply_to_status_id', null, SQLITE3_NULL);
         }else{
@@ -224,16 +224,16 @@ function addTweet(SQLite3 $db, Tweet $tweet){
             $stmt->bindValue(':in_reply_to_screen_name', $inReplyTo->getInReplyToScreenName(), SQLITE3_TEXT);
         }
 
-        if($tweet->getGeo() === null){
+        if($status->getGeo() === null){
             $stmt->bindValue(':geo', null, SQLITE3_NULL);
         }else{
-            $stmt->bindValue(':geo', $tweet->getGeo(), SQLITE3_TEXT);
+            $stmt->bindValue(':geo', $status->getGeo(), SQLITE3_TEXT);
         }
 
-        $stmt->bindValue(':user_id', $tweet->getUser()->getId(), SQLITE3_INTEGER);
+        $stmt->bindValue(':user_id', $status->getUser()->getId(), SQLITE3_INTEGER);
 
         $userMentionIds = [];
-        foreach($tweet->getUserMentions() as $mention){
+        foreach($status->getUserMentions() as $mention){
             $userMentionIds[] = $mention->getId();
         }
         if(count($userMentionIds) > 0){
@@ -243,7 +243,7 @@ function addTweet(SQLite3 $db, Tweet $tweet){
         }
 
         $mediaIds = [];
-        foreach($tweet->getMedias() as $media){
+        foreach($status->getMedias() as $media){
             $mediaIds[] = $media->getId();
         }
         if(count($mediaIds) > 0){
@@ -253,7 +253,7 @@ function addTweet(SQLite3 $db, Tweet $tweet){
         }
 
         $urlIds = [];
-        foreach($tweet->getUrls() as $url){
+        foreach($status->getUrls() as $url){
             $stmt = $db->prepare('SELECT id FROM urls WHERE url = ? AND expanded_url = ? AND display_url = ?');
             $stmt->bindValue(1, $url->getUrl(), SQLITE3_TEXT);
             $stmt->bindValue(2, $url->getExpandedUrl(), SQLITE3_TEXT);
@@ -266,13 +266,13 @@ function addTweet(SQLite3 $db, Tweet $tweet){
             $stmt->bindValue(':url_ids', null, SQLITE3_NULL);
         }
 
-        $stmt->bindValue(':source_name', $tweet->getSource()->getName(), SQLITE3_TEXT);
-        $stmt->bindValue(':source_url', $tweet->getSource()->getUrl(), SQLITE3_TEXT);
+        $stmt->bindValue(':source_name', $status->getSource()->getName(), SQLITE3_TEXT);
+        $stmt->bindValue(':source_url', $status->getSource()->getUrl(), SQLITE3_TEXT);
 
-        if($tweet->getRetweetedTweet() === null){
-            $stmt->bindValue(':retweeted_tweet_id', null, SQLITE3_NULL);
+        if($status->getRetweetedStatus() === null){
+            $stmt->bindValue(':retweeted_status_id', null, SQLITE3_NULL);
         }else{
-            $stmt->bindValue(':retweeted_tweet_id', $tweet->getRetweetedTweet()->getId(), SQLITE3_INTEGER);
+            $stmt->bindValue(':retweeted_status_id', $status->getRetweetedStatus()->getId(), SQLITE3_INTEGER);
         }
         $stmt->execute();
     }catch(Exception $e){

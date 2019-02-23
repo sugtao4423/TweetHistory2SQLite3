@@ -7,7 +7,7 @@ require_once(dirname(__FILE__) . '/Url.php');
 require_once(dirname(__FILE__) . '/Media.php');
 require_once(dirname(__FILE__) . '/InReplyTo.php');
 
-class Tweet{
+class Status{
 
     protected $id;
     protected $text;
@@ -19,7 +19,7 @@ class Tweet{
     protected $medias;
     protected $urls;
     protected $geo;
-    protected $retweetedTweet;
+    protected $retweetedStatus;
 
     public function __construct(array $json){
         $this->id = (int)$json['id_str'];
@@ -49,9 +49,9 @@ class Tweet{
             $this->geo = implode(',', $json['geo']['coordinates']);
         }
 
-        $this->retweetedTweet = null;
+        $this->retweetedStatus = null;
         if(isset($json['retweeted_status'])){
-            $this->retweetedTweet = new Tweet($json['retweeted_status']);
+            $this->retweetedStatus = new Status($json['retweeted_status']);
         }
 
     }
@@ -96,8 +96,8 @@ class Tweet{
         return $this->geo;
     }
 
-    public function getRetweetedTweet(): ?Tweet{
-        return $this->retweetedTweet;
+    public function getRetweetedStatus(): ?Status{
+        return $this->retweetedStatus;
     }
 
 }
