@@ -68,6 +68,21 @@ $db->exec('CREATE TABLE statuses (
     source_id INTEGER NOT NULL,
     retweeted_status_id INTEGER
 )');
+$db->exec('CREATE TABLE retweeted_statuses (
+    id INTEGER NOT NULL UNIQUE,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    in_reply_to_status_id INTEGER,
+    in_reply_to_user_id INTEGER,
+    in_reply_to_screen_name TEXT,
+    geo TEXT,
+    user_id INTEGER NOT NULL,
+    user_mention_ids TEXT,
+    media_ids TEXT,
+    url_ids TEXT,
+    source_id INTEGER NOT NULL,
+    retweeted_status_id INTEGER
+)');
 
 $count = 0;
 echo '0 tweets done';
@@ -79,7 +94,7 @@ foreach(glob("${jsFilesDir}/*.js") as $js){
         $status = new Status($j);
         statusJson2db($db, $status);
         if($status->getRetweetedStatus() !== null){
-            statusJson2db($db, $status->getRetweetedStatus());
+            statusJson2db($db, $status->getRetweetedStatus(), true);
         }
         $count++;
         echo "\r${count} tweets done";
@@ -89,7 +104,7 @@ foreach(glob("${jsFilesDir}/*.js") as $js){
 $db->exec('COMMIT');
 echo "\n";
 
-function statusJson2db(SQLite3 $db, Status $status){
+function statusJson2db(SQLite3 $db, Status $status, bool $isRetweet = false){
     /*** Add User ***/
     addUser($db, $status->getUser());
 
@@ -112,7 +127,7 @@ function statusJson2db(SQLite3 $db, Status $status){
     }
 
     /*** Add Status ***/
-    addStatus($db, $status);
+    addStatus($db, $status, $isRetweet);
 }
 
 function bool2int(bool $b): int{
@@ -194,15 +209,16 @@ function addUrl(SQLite3 $db, Url $url){
     }
 }
 
-function addStatus(SQLite3 $db, Status $status){
+function addStatus(SQLite3 $db, Status $status, bool $isRetweet = false){
     try{
-        $stmt = $db->prepare('INSERT OR IGNORE INTO statuses VALUES (
+        $tableName = $isRetweet ? 'retweeted_statuses' : 'statuses';
+        $stmt = $db->prepare("INSERT OR IGNORE INTO ${tableName} VALUES (
             :id, :text, :created_at,
             :in_reply_to_status_id, :in_reply_to_user_id, :in_reply_to_screen_name,
             :geo, :user_id, :user_mention_ids, :media_ids, :url_ids,
                 (SELECT id FROM sources WHERE name = :source_name AND url = :source_url),
             :retweeted_status_id
-        )');
+        )");
         $stmt->bindValue(':id', $status->getId(), SQLITE3_INTEGER);
         $stmt->bindValue(':text', $status->getText(), SQLITE3_TEXT);
         $stmt->bindValue(':created_at', $status->getCreatedAt(), SQLITE3_INTEGER);
