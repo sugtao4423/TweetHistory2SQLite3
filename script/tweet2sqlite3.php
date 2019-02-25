@@ -271,11 +271,11 @@ function addStatus(SQLite3 $db, Status $status, bool $isRetweet = false){
 
         $urlIds = [];
         foreach($status->getUrls() as $url){
-            $stmt = $db->prepare('SELECT id FROM urls WHERE url = ? AND expanded_url = ? AND display_url = ?');
-            $stmt->bindValue(1, $url->getUrl(), SQLITE3_TEXT);
-            $stmt->bindValue(2, $url->getExpandedUrl(), SQLITE3_TEXT);
-            $stmt->bindValue(3, $url->getDisplayUrl(), SQLITE3_TEXT);
-            $urlIds[] = $stmt->execute()->fetchArray(SQLITE3_NUM)[0];
+            $urlStmt = $db->prepare('SELECT id FROM urls WHERE url = ? AND expanded_url = ? AND display_url = ?');
+            $urlStmt->bindValue(1, $url->getUrl(), SQLITE3_TEXT);
+            $urlStmt->bindValue(2, $url->getExpandedUrl(), SQLITE3_TEXT);
+            $urlStmt->bindValue(3, $url->getDisplayUrl(), SQLITE3_TEXT);
+            $urlIds[] = $urlStmt->execute()->fetchArray(SQLITE3_NUM)[0];
         }
         if(count($urlIds) > 0){
             $stmt->bindValue(':url_ids', implode(',', $urlIds), SQLITE3_TEXT);
