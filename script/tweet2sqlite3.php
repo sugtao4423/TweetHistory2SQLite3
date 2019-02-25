@@ -102,6 +102,7 @@ foreach(glob("${jsFilesDir}/*.js") as $js){
 }
 
 $db->exec('COMMIT');
+$db->close();
 echo "\n";
 
 function statusJson2db(SQLite3 $db, Status $status, bool $isRetweet = false){
