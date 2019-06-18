@@ -11,9 +11,12 @@ require_once(DATACLASSDIR . '/Media.php');
 require_once(DATACLASSDIR . '/Status.php');
 
 /*** config ***/
-$jsFilesDir = dirname(__FILE__) . '/../twitterdata/data/js/tweets/';
+$tweetZip = dirname(__FILE__) . '/../tweets.zip';
 $dbFile     = dirname(__FILE__) . '/../tweets.sqlite3';
 /**************/
+
+$extractPath = dirname(__FILE__) . '/../twitterdata/';
+extractZip($tweetZip, $extractPath);
 
 $db = new SQLite3($dbFile);
 $db->enableExceptions(true);
@@ -86,7 +89,7 @@ $db->exec('CREATE TABLE retweeted_statuses (
 
 $count = 0;
 echo '0 tweets done';
-foreach(glob("${jsFilesDir}/*.js") as $js){
+foreach(glob("${extractPath}/data/js/tweets/*.js") as $js){
     $rawJson = file_get_contents($js);
     $rawJson = preg_replace('/Grailbird\.data\.tweets_\d{4}_\d{2}\s*?=/', '', $rawJson);
     $json = array_reverse(json_decode($rawJson, true));
@@ -104,6 +107,27 @@ foreach(glob("${jsFilesDir}/*.js") as $js){
 $db->exec('COMMIT');
 $db->close();
 echo "\n";
+
+rmrf($extractPath);
+
+function extractZip(string $zipPath, string $extractPath){
+    $zip = new ZipArchive();
+    $result = $zip->open($zipPath);
+    if($result === false){
+        echo "Not found tweet history zip.\n";
+        exit(1);
+    }
+    $zip->extractTo($extractPath);
+    $zip->close();
+}
+
+function rmrf(string $dir){
+    $files = array_diff(scandir($dir), ['.', '..']);
+    foreach($files as $file){
+        is_dir("$dir/$file") ? rmrf("$dir/$file") : unlink("$dir/$file");
+    }
+    rmdir($dir);
+}
 
 function statusJson2db(SQLite3 $db, Status $status, bool $isRetweet = false){
     /*** Add User ***/
