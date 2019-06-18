@@ -21,71 +21,7 @@ extractZip($tweetZip, $extractPath);
 $db = new SQLite3($dbFile);
 $db->enableExceptions(true);
 $db->exec('BEGIN');
-
-$db->exec('CREATE TABLE user_mentions (
-    id INTEGER NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    screen_name TEXT NOT NULL
-)');
-$db->exec('CREATE TABLE users (
-    id INTEGER NOT NULL UNIQUE,
-    name TEXT NOT NULL,
-    screen_name TEXT NOT NULL,
-    protected INTEGER NOT NULL,
-    profile_image_url_https TEXT NOT NULL,
-    verified INTEGER NOT NULL
-)');
-$db->exec('CREATE TABLE sources (
-    id INTEGER PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    url TEXT NOT NULL,
-    UNIQUE(name, url)
-)');
-$db->exec('CREATE TABLE medias (
-    id INTEGER NOT NULL,
-    url TEXT NOT NULL,
-    media_url_https TEXT NOT NULL,
-    display_url TEXT NOT NULL,
-    expanded_url TEXT NOT NULL,
-    media_alt TEXT
-)');
-$db->exec('CREATE TABLE urls (
-    id INTEGER PRIMARY KEY NOT NULL,
-    url TEXT NOT NULL,
-    expanded_url TEXT NOT NULL,
-    display_url TEXT NOT NULL,
-    UNIQUE(url, expanded_url, display_url)
-)');
-$db->exec('CREATE TABLE statuses (
-    id INTEGER NOT NULL UNIQUE,
-    text TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    in_reply_to_status_id INTEGER,
-    in_reply_to_user_id INTEGER,
-    in_reply_to_screen_name TEXT,
-    geo TEXT,
-    user_id INTEGER NOT NULL,
-    user_mention_ids TEXT,
-    media_ids TEXT,
-    url_ids TEXT,
-    source_id INTEGER NOT NULL,
-    retweeted_status_id INTEGER
-)');
-$db->exec('CREATE TABLE retweeted_statuses (
-    id INTEGER NOT NULL UNIQUE,
-    text TEXT NOT NULL,
-    created_at INTEGER NOT NULL,
-    in_reply_to_status_id INTEGER,
-    in_reply_to_user_id INTEGER,
-    in_reply_to_screen_name TEXT,
-    geo TEXT,
-    user_id INTEGER NOT NULL,
-    user_mention_ids TEXT,
-    media_ids TEXT,
-    url_ids TEXT,
-    source_id INTEGER NOT NULL,
-    retweeted_status_id INTEGER
-)');
+createTables($db);
 
 $count = 0;
 echo '0 tweets done';
@@ -127,6 +63,76 @@ function rmrf(string $dir){
         is_dir("$dir/$file") ? rmrf("$dir/$file") : unlink("$dir/$file");
     }
     rmdir($dir);
+}
+
+function createTables(SQLite3 $db){
+    $sql = <<< 'EOF'
+CREATE TABLE user_mentions (
+    id INTEGER NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    screen_name TEXT NOT NULL
+);
+CREATE TABLE users (
+    id INTEGER NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    screen_name TEXT NOT NULL,
+    protected INTEGER NOT NULL,
+    profile_image_url_https TEXT NOT NULL,
+    verified INTEGER NOT NULL
+);
+CREATE TABLE sources (
+    id INTEGER PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    UNIQUE(name, url)
+);
+CREATE TABLE medias (
+    id INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    media_url_https TEXT NOT NULL,
+    display_url TEXT NOT NULL,
+    expanded_url TEXT NOT NULL,
+    media_alt TEXT
+);
+CREATE TABLE urls (
+    id INTEGER PRIMARY KEY NOT NULL,
+    url TEXT NOT NULL,
+    expanded_url TEXT NOT NULL,
+    display_url TEXT NOT NULL,
+    UNIQUE(url, expanded_url, display_url)
+);
+CREATE TABLE statuses (
+    id INTEGER NOT NULL UNIQUE,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    in_reply_to_status_id INTEGER,
+    in_reply_to_user_id INTEGER,
+    in_reply_to_screen_name TEXT,
+    geo TEXT,
+    user_id INTEGER NOT NULL,
+    user_mention_ids TEXT,
+    media_ids TEXT,
+    url_ids TEXT,
+    source_id INTEGER NOT NULL,
+    retweeted_status_id INTEGER
+);
+CREATE TABLE retweeted_statuses (
+    id INTEGER NOT NULL UNIQUE,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    in_reply_to_status_id INTEGER,
+    in_reply_to_user_id INTEGER,
+    in_reply_to_screen_name TEXT,
+    geo TEXT,
+    user_id INTEGER NOT NULL,
+    user_mention_ids TEXT,
+    media_ids TEXT,
+    url_ids TEXT,
+    source_id INTEGER NOT NULL,
+    retweeted_status_id INTEGER
+);
+EOF;
+    $db->exec($sql);
 }
 
 function statusJson2db(SQLite3 $db, Status $status, bool $isRetweet = false){
