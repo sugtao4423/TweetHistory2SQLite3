@@ -36,7 +36,7 @@ foreach(glob("${extractPath}/data/js/tweets/*.js") as $js){
             statusJson2db($db, $status->getRetweetedStatus(), true);
         }
         $count++;
-        echo "\r${count} tweets done";
+        echo "\r" . number_format($count) . ' tweets done';
     }
 }
 
