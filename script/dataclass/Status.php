@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
-require_once(dirname(__FILE__) . '/UserMention.php');
-require_once(dirname(__FILE__) . '/User.php');
-require_once(dirname(__FILE__) . '/Source.php');
-require_once(dirname(__FILE__) . '/Url.php');
-require_once(dirname(__FILE__) . '/Media.php');
-require_once(dirname(__FILE__) . '/InReplyTo.php');
+require_once(__DIR__ . '/UserMention.php');
+require_once(__DIR__ . '/User.php');
+require_once(__DIR__ . '/Source.php');
+require_once(__DIR__ . '/Url.php');
+require_once(__DIR__ . '/Media.php');
+require_once(__DIR__ . '/InReplyTo.php');
 
 class Status{
 

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 ini_set('memory_limit', '1024M');
 
-define('DATACLASSDIR', dirname(__FILE__) . '/dataclass');
+define('DATACLASSDIR', __DIR__ . '/dataclass');
 require_once(DATACLASSDIR . '/UserMention.php');
 require_once(DATACLASSDIR . '/User.php');
 require_once(DATACLASSDIR . '/Source.php');
@@ -11,11 +11,11 @@ require_once(DATACLASSDIR . '/Media.php');
 require_once(DATACLASSDIR . '/Status.php');
 
 /*** config ***/
-$tweetZip = dirname(__FILE__) . '/../tweets.zip';
-$dbFile     = dirname(__FILE__) . '/../tweets.sqlite3';
+$tweetZip = __DIR__ . '/../tweets.zip';
+$dbFile   = __DIR__ . '/../tweets.sqlite3';
 /**************/
 
-$extractPath = dirname(__FILE__) . '/../twitterdata/';
+$extractPath = __DIR__ . '/../twitterdata/';
 extractZip($tweetZip, $extractPath);
 
 $db = new SQLite3($dbFile);

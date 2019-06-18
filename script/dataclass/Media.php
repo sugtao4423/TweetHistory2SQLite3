@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once(dirname(__FILE__) . '/Url.php');
+require_once(__DIR__ . '/Url.php');
 
 class Media extends Url{
 
