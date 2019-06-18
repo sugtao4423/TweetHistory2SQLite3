@@ -166,10 +166,11 @@ function bool2int(bool $b): int{
 }
 
 function addUser(SQLite3 $db, User $user){
+    $sql = 'INSERT OR IGNORE INTO users VALUES (
+        :id, :name, :screen_name, :protected, :profile_image_url_https, :verified
+    )';
     try{
-        $stmt = $db->prepare('INSERT OR IGNORE INTO users VALUES (
-            :id, :name, :screen_name, :protected, :profile_image_url_https, :verified
-        )');
+        $stmt = $db->prepare($sql);
         $stmt->bindValue(':id', $user->getId(), SQLITE3_INTEGER);
         $stmt->bindValue(':name', $user->getName(), SQLITE3_TEXT);
         $stmt->bindValue(':screen_name', $user->getScreenName(), SQLITE3_TEXT);
@@ -183,10 +184,9 @@ function addUser(SQLite3 $db, User $user){
 }
 
 function addUserMention(SQLite3 $db, UserMention $mention){
+    $sql = 'INSERT OR IGNORE INTO user_mentions VALUES (:id, :name, :screen_name)';
     try{
-        $stmt = $db->prepare('INSERT OR IGNORE INTO user_mentions VALUES (
-            :id, :name, :screen_name
-        )');
+        $stmt = $db->prepare($sql);
         $stmt->bindValue(':id', $mention->getId(), SQLITE3_INTEGER);
         $stmt->bindValue(':name', $mention->getName(), SQLITE3_TEXT);
         $stmt->bindValue(':screen_name', $mention->getScreenName(), SQLITE3_TEXT);
@@ -197,10 +197,9 @@ function addUserMention(SQLite3 $db, UserMention $mention){
 }
 
 function addSource(SQLite3 $db, Source $source){
+    $sql = 'INSERT OR IGNORE INTO sources (name, url) VALUES (:name, :url)';
     try{
-        $stmt = $db->prepare('INSERT OR IGNORE INTO sources (name, url) VALUES (
-            :name, :url
-        )');
+        $stmt = $db->prepare($sql);
         $stmt->bindValue(':name', $source->getName(), SQLITE3_TEXT);
         $stmt->bindValue(':url', $source->getUrl(), SQLITE3_TEXT);
         $stmt->execute();
@@ -210,10 +209,11 @@ function addSource(SQLite3 $db, Source $source){
 }
 
 function addMedia(SQLite3 $db, Media $media){
+    $sql = 'INSERT OR IGNORE INTO medias VALUES (
+        :id, :url, :media_url_https, :display_url, :expanded_url, :media_alt
+    )';
     try{
-        $stmt = $db->prepare('INSERT OR IGNORE INTO medias VALUES (
-            :id, :url, :media_url_https, :display_url, :expanded_url, :media_alt
-        )');
+        $stmt = $db->prepare($sql);
         $stmt->bindValue(':id', $media->getId(), SQLITE3_INTEGER);
         $stmt->bindValue(':url', $media->getUrl(), SQLITE3_TEXT);
         $stmt->bindValue(':media_url_https', $media->getMediaUrlHttps(), SQLITE3_TEXT);
@@ -227,10 +227,11 @@ function addMedia(SQLite3 $db, Media $media){
 }
 
 function addUrl(SQLite3 $db, Url $url){
+    $sql = 'INSERT OR IGNORE INTO urls (url, expanded_url, display_url) VALUES (
+        :url, :expanded_url, :display_url
+    )';
     try{
-        $stmt = $db->prepare('INSERT OR IGNORE INTO urls (url, expanded_url, display_url) VALUES (
-            :url, :expanded_url, :display_url
-        )');
+        $stmt = $db->prepare($sql);
         $stmt->bindValue(':url', $url->getUrl(), SQLITE3_TEXT);
         $stmt->bindValue(':expanded_url', $url->getExpandedUrl(), SQLITE3_TEXT);
         $stmt->bindValue(':display_url', $url->getDisplayUrl(), SQLITE3_TEXT);
@@ -243,13 +244,14 @@ function addUrl(SQLite3 $db, Url $url){
 function addStatus(SQLite3 $db, Status $status, bool $isRetweet = false){
     try{
         $tableName = $isRetweet ? 'retweeted_statuses' : 'statuses';
-        $stmt = $db->prepare("INSERT OR IGNORE INTO ${tableName} VALUES (
+        $sql = "INSERT OR IGNORE INTO ${tableName} VALUES (
             :id, :text, :created_at,
             :in_reply_to_status_id, :in_reply_to_user_id, :in_reply_to_screen_name,
             :geo, :user_id, :user_mention_ids, :media_ids, :url_ids,
                 (SELECT id FROM sources WHERE name = :source_name AND url = :source_url),
             :retweeted_status_id
-        )");
+        )";
+        $stmt = $db->prepare($sql);
         $stmt->bindValue(':id', $status->getId(), SQLITE3_INTEGER);
         $stmt->bindValue(':text', $status->getText(), SQLITE3_TEXT);
         $stmt->bindValue(':created_at', $status->getCreatedAt(), SQLITE3_INTEGER);
@@ -301,7 +303,8 @@ function addStatus(SQLite3 $db, Status $status, bool $isRetweet = false){
 
         $urlIds = [];
         foreach($status->getUrls() as $url){
-            $urlStmt = $db->prepare('SELECT id FROM urls WHERE url = ? AND expanded_url = ? AND display_url = ?');
+            $sql = 'SELECT id FROM urls WHERE url = ? AND expanded_url = ? AND display_url = ?';
+            $urlStmt = $db->prepare($sql);
             $urlStmt->bindValue(1, $url->getUrl(), SQLITE3_TEXT);
             $urlStmt->bindValue(2, $url->getExpandedUrl(), SQLITE3_TEXT);
             $urlStmt->bindValue(3, $url->getDisplayUrl(), SQLITE3_TEXT);
