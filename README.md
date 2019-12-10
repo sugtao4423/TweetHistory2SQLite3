@@ -1,24 +1,13 @@
 # TweetHistory2SQLite3
-TwitterからDLできるツイート履歴をSQLite3化する
+TwitterからDLできる「Twitterデータ」のツイートたちをSQLite3化する
 
-## ファイルツリー
-```
-├── README.md
-├── script/
-│   ├── dataclass/
-│   └── tweet2sqlite3.php
-├── tweets.sqlite3
-└── tweets.zip
-```
+ツイート履歴のDLができなくなったため、従来のものが使えなくなった。  
+`retweeted_status`や`user`オブジェクトが含まれていない「Twitterデータ(笑)」だけどこれしかないので使わざるを得ない。
 
-### tweets.zip
-TwitterからDLしたツイート履歴のzip
+SQLite3にJSONを解釈してくれる神機能があるのでそれをメインに使っていく。  
+1スクリプトでapiとしても使えるようにしていこうと思う。
 
-### tweet2sqlite3.php
-メインスクリプト
-
-### tweets.sqlite3
+## DBの作成
 ```
-php tweet2sqlite3.php
+php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
 ```
-したら生成される
