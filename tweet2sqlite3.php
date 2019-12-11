@@ -70,5 +70,6 @@ function createDB(){
         $stmt->execute();
     }
     $db->exec('COMMIT');
+    $db->close();
     echo "Done!\n";
 }
