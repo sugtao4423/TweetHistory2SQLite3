@@ -104,7 +104,19 @@ function getLatestTweets(int $page, int $count): string{
 }
 
 function searchTweets(string $searchQuery, int $page, int $count): string{
-    $searches = preg_split('/( |　)+/', $searchQuery);
+    $searches = [];
+    if(preg_match_all('/"(.+?)"/', $searchQuery, $m) === 1){
+        foreach($m[1] as $v){
+            $searches[] = $v;
+            $searchQuery = str_replace("\"$v\"", '', $searchQuery);
+        }
+    }
+
+    foreach(preg_split('/( |　)+/', $searchQuery) as $v){
+        if(mb_strlen($v) !== 0){
+            $searches[] = $v;
+        }
+    }
     $searches = array_map(function($val){
         return "%${val}%";
     }, $searches);
