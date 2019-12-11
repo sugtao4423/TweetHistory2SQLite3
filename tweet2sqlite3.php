@@ -30,6 +30,7 @@ function createDB(){
     }
 
     echo "Loading all tweets...\n";
+    echo '0 tweets';
     $tweets = [];
     foreach(glob("${twitterDataDir}/tweet*.js") as $js){
         $rawJson = file_get_contents($js);
@@ -42,11 +43,13 @@ function createDB(){
                 $coord[1] = floatval($coord[1]);
             }
             $tweets[$j['id']] = json_encode($j, JSON_UNESCAPED_UNICODE);
+            $size = count($tweets);
+            echo "\r${size} tweets";
         }
     }
     ksort($tweets);
 
-    echo "Creating database...\n";
+    echo "\nCreating database...\n";
     $db = new SQLite3($dbPath);
     $db->enableExceptions(true);
     $db->exec('BEGIN');
