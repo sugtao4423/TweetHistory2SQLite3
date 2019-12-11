@@ -21,3 +21,4 @@ php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
 * NONE: 最新の50件を取得
 * `page`: ページ
 * `count`: 数
+* `query`: ツイート本文から検索

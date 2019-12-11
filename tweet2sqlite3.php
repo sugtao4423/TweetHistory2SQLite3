@@ -16,9 +16,14 @@ define('DEFAULT_COUNT', 50);
 
 $page = intval($_GET['page'] ?? 1);
 $count = intval($_GET['count'] ?? DEFAULT_COUNT);
+$query = $_GET['query'];
 
 $db = new SQLite3(SQLITE3_DB);
-$tweets = getLatestTweets($page, $count);
+if(isset($query)){
+    $tweets = searchTweets($query, $page, $count);
+}else{
+    $tweets = getLatestTweets($page, $count);
+}
 
 header('Content-Type: application/json');
 echo $tweets;
@@ -92,13 +97,38 @@ function createDB(){
 }
 
 function getLatestTweets(int $page, int $count): string{
-    global $db;
     $offset = $page * $count;
     $sql = "SELECT json FROM tweets LIMIT (SELECT MAX(ROWID) FROM tweets) - ${offset}, ${count}";
+    $jsons = getTweets($sql);
+    return '[' . implode(',', $jsons) . ']';
+}
+
+function searchTweets(string $searchQuery, int $page, int $count): string{
+    $searches = preg_split('/( |　)+/', $searchQuery);
+    $searches = array_map(function($val){
+        return "%${val}%";
+    }, $searches);
+
+    $sql = 'SELECT json FROM tweets WHERE ';
+    $sql .= str_repeat("JSON_EXTRACT(json, '$.full_text') LIKE ? AND ", count($searches));
+    $sql = mb_substr($sql, 0, -4);
+
+    $jsons = getTweets($sql, ...$searches);
+    $offset = count($jsons) - $page * $count;
+    $jsons = array_slice($jsons, $offset, $count);
+    return '[' . implode(',', $jsons) . ']';
+}
+
+function getTweets(string $sql, string ...$bindArgs): array{
+    global $db;
     $jsons = [];
-    $query = $db->query($sql);
+    $stmt = $db->prepare($sql);
+    for($i = 0; $i < count($bindArgs); $i++){
+        $stmt->bindValue($i + 1, $bindArgs[$i], SQLITE3_TEXT);
+    }
+    $query = $stmt->execute();
     while($q = $query->fetchArray(SQLITE3_NUM)){
         $jsons[] = $q[0];
     }
-    return '[' . implode(',', $jsons) . ']';
+    return $jsons;
 }
