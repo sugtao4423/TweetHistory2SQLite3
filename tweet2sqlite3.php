@@ -24,11 +24,12 @@ function createDB(){
         if($input === 'y' || $input === 'yes'){
             unlink($dbPath);
         }else{
-            echo 'Please rename or delete old database.';
+            echo "Please rename or delete old database.\n";
             exit(1);
         }
     }
 
+    echo "Loading all tweets...\n";
     $tweets = [];
     foreach(glob("${twitterDataDir}/tweet*.js") as $js){
         $rawJson = file_get_contents($js);
@@ -45,6 +46,7 @@ function createDB(){
     }
     ksort($tweets);
 
+    echo "Creating database...\n";
     $db = new SQLite3($dbPath);
     $db->enableExceptions(true);
     $db->exec('BEGIN');
@@ -57,4 +59,5 @@ function createDB(){
         $stmt->execute();
     }
     $db->exec('COMMIT');
+    echo "Done!\n";
 }
