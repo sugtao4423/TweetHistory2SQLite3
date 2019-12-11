@@ -11,7 +11,7 @@ if($isCreateDB){
 function createDB(){
     global $argv;
     $twitterDataDir = $argv[1];
-    $dbPath = $argv[2] ?? './tweets.sqlite3';
+    $dbPath = $argv[2] ?? __DIR__ . '/tweets.sqlite3';
 
     if(!is_dir($twitterDataDir)){
         echo 'Please set Twitter Data directory.';
