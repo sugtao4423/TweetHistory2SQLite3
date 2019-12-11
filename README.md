@@ -11,3 +11,13 @@ SQLite3にJSONを解釈してくれる神機能があるのでそれをメイン
 ```
 php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
 ```
+
+## ツイート取得
+```
+/tweet2sqlite3.php
+```
+
+### GET Params
+* NONE: 最新の50件を取得
+* `page`: ページ
+* `count`: 数

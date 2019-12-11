@@ -6,7 +6,24 @@ ini_set('memory_limit', '3G');
 $isCreateDB = isset($argv[1]);
 if($isCreateDB){
     createDB();
+    exit(0);
 }
+
+// default DB location
+define('SQLITE3_DB', __DIR__ . '/tweets.sqlite3');
+// default json count
+define('DEFAULT_COUNT', 50);
+
+$page = intval($_GET['page'] ?? 1);
+$count = intval($_GET['count'] ?? DEFAULT_COUNT);
+
+$db = new SQLite3(SQLITE3_DB);
+$tweets = getLatestTweets($page, $count);
+
+header('Content-Type: application/json');
+echo $tweets;
+
+$db->close();
 
 function createDB(){
     global $argv;
@@ -72,4 +89,16 @@ function createDB(){
     $db->exec('COMMIT');
     $db->close();
     echo "Done!\n";
+}
+
+function getLatestTweets(int $page, int $count): string{
+    global $db;
+    $offset = $page * $count;
+    $sql = "SELECT json FROM tweets LIMIT (SELECT MAX(ROWID) FROM tweets) - ${offset}, ${count}";
+    $jsons = [];
+    $query = $db->query($sql);
+    while($q = $query->fetchArray(SQLITE3_NUM)){
+        $jsons[] = $q[0];
+    }
+    return '[' . implode(',', $jsons) . ']';
 }
