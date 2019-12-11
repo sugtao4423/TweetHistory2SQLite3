@@ -42,6 +42,14 @@ function createDB(){
                 $coord[0] = floatval($coord[0]);
                 $coord[1] = floatval($coord[1]);
             }
+            if(isset($j['entities'])){
+                $j['entities'] = array_filter($j['entities'], function($val){
+                    return is_array($val) && !empty($val);
+                });
+                if(empty($j['entities'])){
+                    unset($j['entities']);
+                }
+            }
             $tweets[$j['id']] = json_encode($j, JSON_UNESCAPED_UNICODE);
             $size = count($tweets);
             echo "\r${size} tweets";
