@@ -18,17 +18,26 @@ $page = intval($_GET['page'] ?? 1);
 $count = intval($_GET['count'] ?? DEFAULT_COUNT);
 $query = $_GET['query'];
 
-$db = new SQLite3(SQLITE3_DB);
-if(isset($query)){
-    $tweets = searchTweets($query, $page, $count);
-}else{
-    $tweets = getLatestTweets($page, $count);
-}
-
 header('Content-Type: application/json');
-echo $tweets;
+try{
+    $db = new SQLite3(SQLITE3_DB);
+    $db->enableExceptions(true);
 
-$db->close();
+    if(isset($query)){
+        $tweets = searchTweets($query, $page, $count);
+    }else{
+        $tweets = getLatestTweets($page, $count);
+    }
+    echo $tweets;
+
+    $db->close();
+}catch(Exception $e){
+    $res = [ 'error' => [
+        'code' => $e->getCode(),
+        'message' => $e->getMessage()
+    ]];
+    echo json_encode($res, JSON_UNESCAPED_UNICODE);
+}
 
 function createDB(){
     global $argv;
