@@ -104,9 +104,12 @@ function createDB(){
 
 function getLatestTweets(int $page, int $count): string{
     $offset = $page * $count;
-    $sql = "SELECT json FROM tweets LIMIT (SELECT MAX(ROWID) FROM tweets) - ${offset}, ${count}";
-    $jsons = getTweets($sql);
-    return '[' . implode(',', $jsons) . ']';
+    $sql = "SELECT json, (SELECT COUNT(json) FROM tweets) AS allCount FROM tweets LIMIT (SELECT MAX(ROWID) FROM tweets) - ${offset}, ${count}";
+    $dbRows = getDBRows($sql);
+    $allCount = intval($dbRows['allCount'][0]);
+    $rangeStart = $allCount - $offset;
+    $rangeEnd = $rangeStart + $count;
+    return "{\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $dbRows['json']) . ']}';
 }
 
 function searchTweets(string $searchQuery, int $page, int $count): string{
@@ -131,22 +134,31 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $sql .= str_repeat("JSON_EXTRACT(json, '$.full_text') LIKE ? AND ", count($searches));
     $sql = mb_substr($sql, 0, -4);
 
-    $jsons = getTweets($sql, ...$searches);
-    $offset = count($jsons) - $page * $count;
-    $jsons = array_slice($jsons, $offset, $count);
-    return '[' . implode(',', $jsons) . ']';
+    $jsons = getDBRows($sql, ...$searches)['json'];
+    $allCount = count($jsons);
+    $rangeStart = $allCount - $page * $count;
+    $rangeEnd = $rangeStart + $count;
+    $jsons = array_slice($jsons, $rangeStart, $count);
+    return "{\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']';
 }
 
-function getTweets(string $sql, string ...$bindArgs): array{
+function getDBRows(string $sql, string ...$bindArgs): array{
     global $db;
-    $jsons = [];
+    $rows = [];
     $stmt = $db->prepare($sql);
     for($i = 0; $i < count($bindArgs); $i++){
         $stmt->bindValue($i + 1, $bindArgs[$i], SQLITE3_TEXT);
     }
     $query = $stmt->execute();
-    while($q = $query->fetchArray(SQLITE3_NUM)){
-        $jsons[] = $q[0];
+    $columnRange = range(0, $query->numColumns() - 1);
+    $columnNames = [];
+    foreach($columnRange as $i){
+        $columnNames[] = $query->columnName($i);
     }
-    return $jsons;
+    while($q = $query->fetchArray(SQLITE3_ASSOC)){
+        foreach($columnRange as $i){
+            $rows[$columnNames[$i]][] = $q[$columnNames[$i]];
+        }
+    }
+    return $rows;
 }
