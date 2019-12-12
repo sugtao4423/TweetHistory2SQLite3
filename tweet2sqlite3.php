@@ -34,6 +34,7 @@ try{
         'code' => $e->getCode(),
         'message' => $e->getMessage()
     ]];
+    http_response_code(500);
     echo json_encode($res, JSON_UNESCAPED_UNICODE);
 }
 
