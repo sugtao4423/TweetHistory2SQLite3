@@ -1,7 +1,5 @@
 <?php
 declare(strict_types=1);
-// about 450k tweets need 3GB memory
-ini_set('memory_limit', '3G');
 
 $isCreateDB = isset($argv[1]);
 if($isCreateDB){
@@ -62,7 +60,13 @@ function createDB(){
 
     echo "Loading all tweets...\n";
     echo '0 tweets';
-    $tweets = [];
+    $db = new SQLite3($dbPath);
+    $db->enableExceptions(true);
+    $db->exec('BEGIN');
+    $db->exec('CREATE TABLE temp (json JSON)');
+
+    $insertSql = 'INSERT INTO temp VALUES (?)';
+    $tweetCount = 0;
     foreach(glob("${twitterDataDir}/tweet*.js") as $js){
         $rawJson = file_get_contents($js);
         $rawJson = preg_replace('/window\.YTD\.tweet\.part.+ =/', '', $rawJson);
@@ -81,26 +85,21 @@ function createDB(){
                     unset($j['entities']);
                 }
             }
-            $tweets[$j['id']] = json_encode($j, JSON_UNESCAPED_UNICODE);
-            $size = count($tweets);
-            echo "\r${size} tweets";
+            $stmt = $db->prepare($insertSql);
+            $stmt->bindValue(1, json_encode($j, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+            $stmt->execute();
+            $tweetCount++;
+            echo "\r${tweetCount} tweets";
         }
     }
-    ksort($tweets);
 
-    echo "\nCreating database...\n";
-    $db = new SQLite3($dbPath);
-    $db->enableExceptions(true);
-    $db->exec('BEGIN');
+    echo "\nSorting tweets...\n";
     $db->exec('CREATE TABLE tweets (json JSON)');
-
-    $sql = 'INSERT INTO tweets VALUES (?)';
-    foreach($tweets as $t){
-        $stmt = $db->prepare($sql);
-        $stmt->bindValue(1, $t, SQLITE3_TEXT);
-        $stmt->execute();
-    }
+    $db->exec("INSERT INTO tweets SELECT json FROM temp ORDER BY CAST(JSON_EXTRACT(json, '$.id') AS INTEGER) ASC");
+    $db->exec('DROP TABLE temp');
     $db->exec('COMMIT');
+    echo "Optimizing database...\n";
+    $db->exec('VACUUM');
     $db->close();
     echo "Done!\n";
 }
