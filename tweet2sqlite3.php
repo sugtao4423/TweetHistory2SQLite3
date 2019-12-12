@@ -73,9 +73,7 @@ function createDB(){
         $json = json_decode($rawJson, true);
         foreach($json as $j){
             if(isset($j['coordinates']['coordinates'])){
-                $coord = &$j['coordinates']['coordinates'];
-                $coord[0] = floatval($coord[0]);
-                $coord[1] = floatval($coord[1]);
+                $j['coordinates']['coordinates'] = array_map('floatval', $j['coordinates']['coordinates']);
             }
             if(isset($j['entities'])){
                 $j['entities'] = array_filter($j['entities'], function($val){
