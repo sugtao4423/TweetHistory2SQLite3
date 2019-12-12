@@ -16,7 +16,7 @@ define('DEFAULT_COUNT', 50);
 
 $page = intval($_GET['page'] ?? 1);
 $count = intval($_GET['count'] ?? DEFAULT_COUNT);
-$query = $_GET['query'];
+$query = $_GET['query'] ?? null;
 
 header('Content-Type: application/json');
 try{
