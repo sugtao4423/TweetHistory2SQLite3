@@ -11,10 +11,13 @@ if($isCreateDB){
 define('SQLITE3_DB', __DIR__ . '/tweets.sqlite3');
 // default json count
 define('DEFAULT_COUNT', 50);
+//default before after tweets count
+define('DEFAULT_BEFORE_AFTER_COUNT', 5);
 
 $page = intval($_GET['page'] ?? 1);
 $count = intval($_GET['count'] ?? DEFAULT_COUNT);
 $query = $_GET['query'] ?? null;
+$beforeAfterTargetId = $_GET['targetId'] ?? null;
 
 header('Content-Type: application/json');
 try{
@@ -23,6 +26,9 @@ try{
 
     if(isset($query)){
         $tweets = searchTweets($query, $page, $count);
+    }else if(isset($beforeAfterTargetId)){
+        $count = intval($_GET['count'] ?? DEFAULT_BEFORE_AFTER_COUNT);
+        $tweets = getBeforeAfterTweets($beforeAfterTargetId, $count);
     }else{
         $tweets = getLatestTweets($page, $count);
     }
@@ -141,6 +147,14 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $rangeEnd = $rangeStart + $count;
     $jsons = array_slice($jsons, $rangeStart, $count);
     return "{\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']';
+}
+
+function getBeforeAfterTweets(string $targetId, int $count): string{
+    $sql = "WITH targetRow AS (SELECT ROWID FROM tweets WHERE JSON_EXTRACT(json, '$.id') = ?) " .
+        'SELECT tweets.json FROM tweets, targetRow ' .
+        "WHERE tweets.ROWID BETWEEN targetRow.ROWID - ${count} AND targetRow.ROWID + ${count}";
+    $jsons = getDBRows($sql, $targetId)['json'];
+    return '{"data":[' . implode(',', $jsons) . ']}';
 }
 
 function getDBRows(string $sql, string ...$bindArgs): array{

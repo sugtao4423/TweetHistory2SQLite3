@@ -4,9 +4,6 @@ TwitterからDLできる「Twitterデータ」のツイートたちをSQLite3化
 ツイート履歴のDLができなくなったため、従来のものが使えなくなった。  
 `retweeted_status`や`user`オブジェクトが含まれていない「Twitterデータ(笑)」だけどこれしかないので使わざるを得ない。
 
-SQLite3にJSONを解釈してくれる神機能があるのでそれをメインに使っていく。  
-1スクリプトでapiとしても使えるようにしていこうと思う。
-
 ## DBの作成
 ```
 php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
@@ -22,3 +19,7 @@ php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
 * `page`: ページ
 * `count`: 数
 * `query`: ツイート本文から検索
+* `targetId`: 対象ツイートIDの前後のツイートを取得
+    - デフォルトでは前後5件ずつ計11ツイートの取得
+    - `count`で件数変更可能
+    - `page`は使わないと思うので非対応
