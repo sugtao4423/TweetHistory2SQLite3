@@ -113,7 +113,7 @@ function getLatestTweets(int $page, int $count): string{
     $offset = $page * $count;
     $sql = "SELECT json, (SELECT COUNT(json) FROM tweets) AS allCount FROM tweets LIMIT (SELECT MAX(ROWID) FROM tweets) - ${offset}, ${count}";
     $dbData = getDBData($sql);
-    $procTime = &$dbData['procTime'];
+    $procTime = $dbData['procTime'];
     $allCount = intval($dbData['allCount'][0]);
     $rangeStart = $allCount - $offset;
     $rangeEnd = $rangeStart + $count;
@@ -143,8 +143,8 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $sql = mb_substr($sql, 0, -4);
 
     $dbData = getDBData($sql, ...$searches);
-    $jsons = &$dbData['json'];
-    $procTime = &$dbData['procTime'];
+    $jsons = $dbData['json'];
+    $procTime = $dbData['procTime'];
     $allCount = count($jsons);
     $rangeStart = $allCount - $page * $count;
     $rangeEnd = $rangeStart + $count;
