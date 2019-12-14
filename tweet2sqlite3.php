@@ -116,7 +116,7 @@ function getLatestTweets(int $page, int $count): string{
     $procTime = $dbData['procTime'];
     $allCount = intval($dbData['allCount'][0]);
     $rangeStart = $allCount - $offset;
-    $rangeEnd = $rangeStart + $count;
+    $rangeEnd = $rangeStart + $count - 1;
     if($rangeStart < 0){
         $rangeStart = 0;
     }
@@ -150,7 +150,7 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $procTime = $dbData['procTime'];
     $allCount = count($jsons);
     $rangeStart = $allCount - $page * $count;
-    $rangeEnd = $rangeStart + $count;
+    $rangeEnd = $rangeStart + $count - 1;
     if($rangeStart < 0){
         $rangeStart = 0;
     }
