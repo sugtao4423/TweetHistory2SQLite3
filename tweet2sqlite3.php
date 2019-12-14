@@ -143,7 +143,7 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $sql = mb_substr($sql, 0, -4);
 
     $dbData = getDBData($sql, ...$searches);
-    $jsons = $dbData['json'];
+    $jsons = $dbData['json'] ?? [];
     $procTime = $dbData['procTime'];
     $allCount = count($jsons);
     $rangeStart = $allCount - $page * $count;
