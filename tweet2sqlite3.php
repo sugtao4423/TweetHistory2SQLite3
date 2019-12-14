@@ -117,6 +117,9 @@ function getLatestTweets(int $page, int $count): string{
     $allCount = intval($dbData['allCount'][0]);
     $rangeStart = $allCount - $offset;
     $rangeEnd = $rangeStart + $count;
+    if($rangeStart < 0){
+        $rangeStart = 0;
+    }
     return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $dbData['json']) . ']}';
 }
 
@@ -148,6 +151,9 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $allCount = count($jsons);
     $rangeStart = $allCount - $page * $count;
     $rangeEnd = $rangeStart + $count;
+    if($rangeStart < 0){
+        $rangeStart = 0;
+    }
     $jsons = array_slice($jsons, $rangeStart, $count);
     return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
 }
