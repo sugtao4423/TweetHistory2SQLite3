@@ -149,7 +149,7 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $rangeStart = $allCount - $page * $count;
     $rangeEnd = $rangeStart + $count;
     $jsons = array_slice($jsons, $rangeStart, $count);
-    return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']';
+    return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
 }
 
 function getBeforeAfterTweets(string $targetId, int $count): string{
