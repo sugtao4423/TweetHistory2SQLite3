@@ -112,11 +112,12 @@ function createDB(){
 function getLatestTweets(int $page, int $count): string{
     $offset = $page * $count;
     $sql = "SELECT json, (SELECT COUNT(json) FROM tweets) AS allCount FROM tweets LIMIT (SELECT MAX(ROWID) FROM tweets) - ${offset}, ${count}";
-    $dbRows = getDBRows($sql);
-    $allCount = intval($dbRows['allCount'][0]);
+    $dbData = getDBData($sql);
+    $procTime = &$dbData['procTime'];
+    $allCount = intval($dbData['allCount'][0]);
     $rangeStart = $allCount - $offset;
     $rangeEnd = $rangeStart + $count;
-    return "{\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $dbRows['json']) . ']}';
+    return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $dbData['json']) . ']}';
 }
 
 function searchTweets(string $searchQuery, int $page, int $count): string{
@@ -141,25 +142,28 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $sql .= str_repeat("JSON_EXTRACT(json, '$.full_text') LIKE ? AND ", count($searches));
     $sql = mb_substr($sql, 0, -4);
 
-    $jsons = getDBRows($sql, ...$searches)['json'];
+    $dbData = getDBData($sql, ...$searches);
+    $jsons = &$dbData['json'];
+    $procTime = &$dbData['procTime'];
     $allCount = count($jsons);
     $rangeStart = $allCount - $page * $count;
     $rangeEnd = $rangeStart + $count;
     $jsons = array_slice($jsons, $rangeStart, $count);
-    return "{\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']';
+    return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']';
 }
 
 function getBeforeAfterTweets(string $targetId, int $count): string{
     $sql = "WITH targetRow AS (SELECT ROWID FROM tweets WHERE JSON_EXTRACT(json, '$.id') = ?) " .
         'SELECT tweets.json FROM tweets, targetRow ' .
         "WHERE tweets.ROWID BETWEEN targetRow.ROWID - ${count} AND targetRow.ROWID + ${count}";
-    $jsons = getDBRows($sql, $targetId)['json'];
-    return '{"data":[' . implode(',', $jsons) . ']}';
+    $dbData = getDBData($sql, $targetId);
+    return '{"procTime":' . $dbData['procTime'] .',"data":[' . implode(',', $dbData['json']) . ']}';
 }
 
-function getDBRows(string $sql, string ...$bindArgs): array{
+function getDBData(string $sql, string ...$bindArgs): array{
     global $db;
-    $rows = [];
+    $startTime = microtime(true);
+    $data = [];
     $stmt = $db->prepare($sql);
     for($i = 0; $i < count($bindArgs); $i++){
         $stmt->bindValue($i + 1, $bindArgs[$i], SQLITE3_TEXT);
@@ -172,8 +176,10 @@ function getDBRows(string $sql, string ...$bindArgs): array{
     }
     while($q = $query->fetchArray(SQLITE3_ASSOC)){
         foreach($columnRange as $i){
-            $rows[$columnNames[$i]][] = $q[$columnNames[$i]];
+            $data[$columnNames[$i]][] = $q[$columnNames[$i]];
         }
     }
-    return $rows;
+    $procTime = microtime(true) - $startTime;
+    $data['procTime'] = round($procTime * 1000);
+    return $data;
 }
