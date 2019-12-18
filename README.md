@@ -22,6 +22,15 @@ php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
 * `targetId`: 対象ツイートIDの前後のツイートを取得
     - デフォルトでは前後5件ずつ計11ツイートの取得
     - `count`で件数変更可能
-    - `page`は使わないと思うので非対応
 * `since`: 日時から
 * `until`: 日時まで
+
+### 併用
+AB | page | count | query | targetId | since | until
+--- | :---: | :---: | :---: | :---: | :---: | :---:
+page | \ | ✔ | ✔ | | ✔ | ✔
+count | ✔ | \ | ✔ | ✔ | ✔ | ✔
+query | ✔ | ✔ | \ | | ✔ | ✔
+targetId | | ✔ | | \ | |
+since | ✔ | ✔ | ✔ | | \ | ✔
+until | ✔ | ✔ | ✔ | | ✔ | \
