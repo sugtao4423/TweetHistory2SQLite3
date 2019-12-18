@@ -70,9 +70,9 @@ function createDB(){
     $db = new SQLite3($dbPath);
     $db->enableExceptions(true);
     $db->exec('BEGIN');
-    $db->exec('CREATE TABLE temp (json JSON)');
+    $db->exec('CREATE TABLE temp (json JSON, created_at DATE)');
 
-    $insertSql = 'INSERT INTO temp VALUES (?)';
+    $insertSql = 'INSERT INTO temp VALUES (?, ?)';
     $tweetCount = 0;
     foreach(glob("${twitterDataDir}/tweet*.js") as $js){
         $rawJson = file_get_contents($js);
@@ -92,6 +92,7 @@ function createDB(){
             }
             $stmt = $db->prepare($insertSql);
             $stmt->bindValue(1, json_encode($j, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+            $stmt->bindValue(2, strtotime($j['created_at']), SQLITE3_INTEGER);
             $stmt->execute();
             $tweetCount++;
             echo "\r${tweetCount} tweets";
@@ -99,8 +100,8 @@ function createDB(){
     }
 
     echo "\nSorting tweets...\n";
-    $db->exec('CREATE TABLE tweets (json JSON)');
-    $db->exec("INSERT INTO tweets SELECT json FROM temp ORDER BY CAST(JSON_EXTRACT(json, '$.id') AS INTEGER) ASC");
+    $db->exec('CREATE TABLE tweets (json JSON, created_at DATE)');
+    $db->exec("INSERT INTO tweets SELECT json, created_at FROM temp ORDER BY CAST(JSON_EXTRACT(json, '$.id') AS INTEGER) ASC");
     $db->exec('DROP TABLE temp');
     $db->exec('COMMIT');
     echo "Optimizing database...\n";
