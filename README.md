@@ -23,3 +23,5 @@ php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
     - デフォルトでは前後5件ずつ計11ツイートの取得
     - `count`で件数変更可能
     - `page`は使わないと思うので非対応
+* `since`: 日時から
+* `until`: 日時まで

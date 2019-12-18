@@ -112,7 +112,9 @@ function createDB(){
 
 function getLatestTweets(int $page, int $count): string{
     $offset = $page * $count;
-    $sql = "SELECT json, (SELECT COUNT(json) FROM tweets) AS allCount FROM tweets LIMIT (SELECT MAX(ROWID) FROM tweets) - ${offset}, ${count}";
+    $sql = 'WITH targetRange AS (SELECT ROWID, json FROM tweets ' . getTargetRangeWhere() . '), ' .
+                'counts AS (SELECT COUNT(json) AS allCount FROM targetRange) ' .
+            "SELECT json, allCount FROM targetRange, counts LIMIT (SELECT allCount FROM counts LIMIT 1) - ${offset}, ${count}";
     $dbData = getDBData($sql);
     $procTime = $dbData['procTime'];
     $allCount = intval($dbData['allCount'][0]);
@@ -143,7 +145,8 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
 
     $sql = 'SELECT json FROM tweets WHERE ';
     $sql .= str_repeat("JSON_EXTRACT(json, '$.full_text') LIKE ? AND ", count($searches));
-    $sql = mb_substr($sql, 0, -4);
+    $sql .= getTargetRangeWhere(false);
+    $sql = preg_replace('/AND $/', '', $sql);
 
     $dbData = getDBData($sql, ...$searches);
     $jsons = $dbData['json'] ?? [];
@@ -155,6 +158,41 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     negative0($rangeEnd);
     $jsons = array_slice($jsons, $rangeStart, $count);
     return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
+}
+
+function getTargetRangeWhere(bool $includeWhere = true): string{
+    function toUnixTime($str): int{
+        if(is_null($str)){
+            return -1;
+        }
+        if(preg_match('/^[0-9]+$/', $str) === 1){
+            return intval($str);
+        }else{
+            $decodeTime = strtotime($str);
+            if($decodeTime === false){
+                http_response_code(400);
+                echo json_encode([ 'error' => [
+                    'code' => 400,
+                    'message' => 'unsupported date format.'
+                ]]);
+                exit(1);
+            }else{
+                return $decodeTime;
+            }
+        }
+    }
+    $since = toUnixTime($_GET['since'] ?? null);
+    $until = toUnixTime($_GET['until'] ?? null);
+    $prefix = $includeWhere ? 'WHERE' : '';
+    if($since >= 0 && $until >= 0){
+        return "$prefix created_at BETWEEN $since AND $until";
+    }else if($since >= 0){
+        return "$prefix created_at >= $since";
+    }else if($until >= 0){
+        return "$prefix created_at <= $until";
+    }else{
+        return '';
+    }
 }
 
 function getBeforeAfterTweets(string $targetId, int $count): string{
