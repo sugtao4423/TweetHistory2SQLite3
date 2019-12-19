@@ -29,7 +29,17 @@ const tweetHistory = new Vue({
         })
     },
     getDateTime: function(tweet) {
-      return new Date(tweet.created_at).toLocaleString()
-    }
+      const d = new Date(tweet.created_at)
+      const yyyy = d.getFullYear()
+      const mm = this.zeroPad(d.getMonth() + 1)
+      const dd = this.zeroPad(d.getDate())
+      const hh = this.zeroPad(d.getHours())
+      const mi = this.zeroPad(d.getMinutes())
+      const se = this.zeroPad(d.getSeconds())
+      return `${yyyy}/${mm}/${dd} ${hh}:${mi}:${se}`
+    },
+    zeroPad: function(num){
+      return `0${num}`.slice(-2)
+    },
   },
 })
