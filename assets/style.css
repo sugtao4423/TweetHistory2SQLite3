@@ -1,0 +1,36 @@
+@charset "UTF-8";
+
+[v-cloak] {
+  display: none;
+}
+
+body {
+  font-family:"メイリオ",Meiryo,"ヒラギノ角ゴ Pro W3",Hiragino Kaku Gothic Pro,"ＭＳ Ｐゴシック",sans-serif;
+  background: url('./dust_scratches.png');
+}
+
+.container > .item:nth-child(even) {
+  background-color: #f9f9f9;
+}
+.container > .item:nth-child(odd) {
+  background-color: #e9e9e9;
+}
+
+.tweetItem {
+  padding: 0.6em 0.4em;
+}
+.tweetItem > p {
+  margin: 0;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.tweetDate {
+  text-align: right;
+  font-size: 0.7em;
+}
+
+hr {
+  margin: 0;
+  border-top: 1px solid #bbb;
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html lang="ja">
+
+<head>
+  <title>TweetHistory</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+  <link href="./assets/style.css" rel="stylesheet">
+</head>
+
+<body>
+  <div id="tweetHistory" v-cloak>
+    <div class="container">
+      <h5>My Tweets</h5>
+    </div>
+
+    <div class="container">
+      <div v-for="tweet in tweets" :key="tweet.id" class="item">
+
+        <div class="tweetItem">
+          <p>{{ tweet.full_text }}</p>
+          <p class="tweetDate">{{ getDateTime(tweet) }}</p>
+        </div>
+
+        <hr>
+      </div>
+
+      <infinite-loading @infinite="infiniteHandler"></infinite-loading>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+  <script src="https://unpkg.com/vue-infinite-loading@^2/dist/vue-infinite-loading.js"></script>
+  <script src="./assets/index.js"></script>
+</body>
+
+</html>
