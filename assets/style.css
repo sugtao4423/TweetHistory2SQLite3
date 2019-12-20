@@ -15,6 +15,16 @@ body {
   border-color: #e7e7e7;
 }
 
+.router-link-exact-active,
+.router-link-active {
+  color: unset;
+}
+
+.searchLink {
+  color: #007bff !important;
+  cursor: pointer;
+}
+
 .container > .item:nth-child(even) {
   background-color: #f9f9f9;
 }
@@ -39,4 +49,9 @@ body {
 hr {
   margin: 0;
   border-top: 1px solid #bbb;
+}
+
+.modal {
+  display: block;
+  background-color: rgba(0, 0, 0, 0.4);
 }
