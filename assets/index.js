@@ -36,8 +36,7 @@ const tweetHistory = new Vue({
           if(res.ok) {
             return res.json()
           } else {
-            const err = res.json().error.message
-            console.log(err)
+            this.$refs.infiniteLoading.stateChanger.error()
           }
         })
         .then((res) => {
