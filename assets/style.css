@@ -7,6 +7,12 @@
 body {
   font-family:"メイリオ",Meiryo,"ヒラギノ角ゴ Pro W3",Hiragino Kaku Gothic Pro,"ＭＳ Ｐゴシック",sans-serif;
   background: url('./dust_scratches.png');
+  padding-top: 70px;
+}
+
+.navbar {
+  border: 1px solid transparent;
+  border-color: #e7e7e7;
 }
 
 .container > .item:nth-child(even) {
