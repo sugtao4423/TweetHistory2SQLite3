@@ -183,6 +183,12 @@ function getTargetRangeWhere(bool $includeWhere = true): string{
     }
     $since = toUnixTime($_GET['since'] ?? null);
     $until = toUnixTime($_GET['until'] ?? null);
+    if($until >= 0){
+        $untilOnlyDate = date('His', $until) === '000000';
+        if($untilOnlyDate){
+            $until += 86400 - 1;
+        }
+    }
     $prefix = $includeWhere ? 'WHERE' : '';
     if($since >= 0 && $until >= 0){
         return "$prefix created_at BETWEEN $since AND $until";
