@@ -14,9 +14,7 @@
   <div id="tweetHistory" v-cloak>
     <b-navbar fixed="top" variant="light" toggleable="">
       <b-container>
-        <router-link v-bind:to="{path: '/'}">
-          <b-navbar-brand>My Tweets</b-navbar-brand>
-        </router-link>
+        <b-navbar-brand :to="{path: '/'}">My Tweets</b-navbar-brand>
         <b-navbar-nav>
           <b-nav-item class="searchLink" v-b-modal.modal>Search</b-nav-item>
         </b-navbar-nav>
