@@ -57,6 +57,23 @@ const tweetHistory = new Vue({
       }
       return reqUrl
     },
+    hasPhoto: function(tweet) {
+      return tweet.extended_entities !== undefined && tweet.extended_entities.media !== undefined && tweet.extended_entities.media[0].type === 'photo'
+    },
+    hasVideo: function(tweet) {
+      return tweet.extended_entities !== undefined && tweet.extended_entities.media !== undefined && tweet.extended_entities.media[0].type === 'video'
+    },
+    getVideoAspect: function(tweet, delimiter = 'by') {
+      return tweet.extended_entities.media[0].video_info.aspect_ratio.join(delimiter)
+    },
+    getHiBitrateVideoUrl: function(tweet) {
+      const variants = tweet.extended_entities.media[0].video_info.variants.concat()
+      variants.sort((a, b) => {
+        if(b.bitrate === undefined) return -1
+        return b.bitrate - a.bitrate
+      })
+      return variants[0].url
+    },
     getDateTime: function(tweet) {
       const d = new Date(tweet.created_at)
       const yyyy = d.getFullYear()

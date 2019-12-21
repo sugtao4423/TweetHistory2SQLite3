@@ -36,6 +36,11 @@ nav {
   word-break: break-word;
 }
 
+.medias {
+  margin-top: 0.2em;
+  margin-bottom: 0.2em;
+}
+
 .tweetDate {
   text-align: right;
   font-size: 0.7em;
