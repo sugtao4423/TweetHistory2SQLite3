@@ -10,18 +10,13 @@ body {
   padding-top: 70px;
 }
 
-.navbar {
+nav {
   border: 1px solid transparent;
   border-color: #e7e7e7;
 }
 
-.router-link-exact-active,
-.router-link-active {
-  color: unset;
-}
-
-.searchLink {
-  color: #007bff;
+.searchLink > a {
+  color: #007bff !important;
   cursor: pointer;
 }
 
@@ -49,9 +44,4 @@ body {
 hr {
   margin: 0;
   border-top: 1px solid #bbb;
-}
-
-.modal {
-  display: block;
-  background-color: rgba(0, 0, 0, 0.4);
 }

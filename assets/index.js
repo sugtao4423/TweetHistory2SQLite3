@@ -9,7 +9,6 @@ const tweetHistory = new Vue({
     tweets: [],
     procTime: 0,
     modal: {
-      show: false,
       query: '',
     },
   },
@@ -28,7 +27,6 @@ const tweetHistory = new Vue({
       this.tweets = []
       this.page = 1
       this.$refs.infiniteLoading.stateChanger.reset()
-      this.closeModal()
     },
     infiniteHandler: function($state) {
       fetch(this.buildRequestUrl())
@@ -81,10 +79,6 @@ const tweetHistory = new Vue({
       if(Object.keys(params).length !== 0) {
         router.push({query: params})
       }
-      this.closeModal()
-    },
-    closeModal: function() {
-      this.modal.show = false
     },
   },
 })

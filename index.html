@@ -5,23 +5,25 @@
   <title>TweetHistory</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
-    integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-  <link href="./assets/style.css" rel="stylesheet">
+  <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap/dist/css/bootstrap.min.css" />
+  <link type="text/css" rel="stylesheet" href="https://unpkg.com/bootstrap-vue/dist/bootstrap-vue.min.css" />
+  <link type="text/css" rel="stylesheet" href="./assets/style.css">
 </head>
 
 <body>
   <div id="tweetHistory" v-cloak>
-    <nav class="navbar fixed-top navbar-light bg-light">
-      <div class="container">
+    <b-navbar fixed="top" variant="light" toggleable="">
+      <b-container>
         <router-link v-bind:to="{path: '/'}">
-          <a class="navbar-brand">My Tweets</a>
+          <b-navbar-brand>My Tweets</b-navbar-brand>
         </router-link>
-        <div class="my-2 my-lg-0 searchLink" v-on:click="modal.show = !modal.show">Search</div>
-      </div>
-    </nav>
+        <b-navbar-nav>
+          <b-nav-item class="searchLink" v-b-modal.modal>Search</b-nav-item>
+        </b-navbar-nav>
+      </b-container>
+    </b-navbar>
 
-    <div class="container">
+    <b-container>
       <div v-for="tweet in tweets" :key="tweet.id" class="item">
 
         <div class="tweetItem">
@@ -33,32 +35,18 @@
       </div>
 
       <infinite-loading @infinite="infiniteHandler" ref="infiniteLoading"></infinite-loading>
-    </div>
+    </b-container>
 
-    <div class="modal" tabindex="-1" role="dialog" v-if="modal.show">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Search</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close" v-on:click="closeModal()">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            <input type="text" class="form-control" placeholder="Search Text" v-model="modal.query">
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-light" data-dismiss="modal" v-on:click="closeModal()">Cancel</button>
-            <button type="button" class="btn btn-info" v-on:click="search()">Search</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <b-modal id="modal" title="Search" ok-only ok-title="Search" ok-variant="info" @ok="search()"
+      @shown="$refs.inputQuery.focus()">
+      <input type="text" class="form-control" placeholder="Search Text" v-model="modal.query" ref="inputQuery">
+    </b-modal>
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/vue"></script>
-  <script src="https://unpkg.com/vue-router/dist/vue-router.js"></script>
+  <script src="https://unpkg.com/vue/dist/vue.min.js"></script>
+  <script src="https://unpkg.com/bootstrap-vue/dist/bootstrap-vue.min.js"></script>
+  <script src="https://unpkg.com/vue-router/dist/vue-router.min.js"></script>
   <script src="https://unpkg.com/vue-infinite-loading@^2/dist/vue-infinite-loading.js"></script>
   <script src="./assets/index.js"></script>
 </body>
