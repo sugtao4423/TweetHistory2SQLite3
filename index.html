@@ -19,7 +19,7 @@
           <b-nav-text>{{ holdTweetCount }}/{{ allTweetCount }}</b-nav-text>
         </b-navbar-nav>
         <b-navbar-nav>
-          <b-nav-item class="searchLink" v-b-modal.modal>Search</b-nav-item>
+          <b-nav-item class="searchLink" v-b-modal.searchmodal>Search</b-nav-item>
         </b-navbar-nav>
       </b-container>
     </b-navbar>
@@ -55,22 +55,22 @@
       <infinite-loading @infinite="infiniteHandler" ref="infiniteLoading"></infinite-loading>
     </b-container>
 
-    <b-modal id="modal" title="Search" ok-only ok-title="Search" ok-variant="info" @ok="search()"
+    <b-modal id="searchmodal" title="Search" ok-only ok-title="Search" ok-variant="info" @ok="search()"
       @shown="$refs.inputQuery.focus()">
       <b-input-group>
-        <b-form-input placeholder="Search Text" v-model="modal.query" ref="inputQuery"></b-form-input>
+        <b-form-input placeholder="Search Text" v-model="searchModal.query" ref="inputQuery"></b-form-input>
       </b-input-group>
       <b-input-group class="mt-4">
         <b-input-group prepend="Since">
-          <b-form-input placeholder="yyyy-mm-dd [hh-mm-ss]" v-model="modal.since"></b-form-input>
+          <b-form-input placeholder="yyyy-mm-dd [hh-mm-ss]" v-model="searchModal.since"></b-form-input>
         </b-input-group>
         <b-input-group class="mt-3" prepend="Until">
-          <b-form-input placeholder="yyyy-mm-dd [hh-mm-ss]" v-model="modal.until"></b-form-input>
+          <b-form-input placeholder="yyyy-mm-dd [hh-mm-ss]" v-model="searchModal.until"></b-form-input>
         </b-input-group>
       </b-input-group>
       <b-form-group class="mt-5" label="前後のツイートを表示" label-for="targetId">
         <b-input-group id="targetId" prepend="status id">
-          <b-form-input type="number" v-model="modal.targetId"></b-form-input>
+          <b-form-input type="number" v-model="searchModal.targetId"></b-form-input>
         </b-input-group>
       </b-form-group>
     </b-modal>

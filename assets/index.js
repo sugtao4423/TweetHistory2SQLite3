@@ -9,7 +9,7 @@ const tweetHistory = new Vue({
     tweets: [],
     allCount: 0,
     procTime: 0,
-    modal: {
+    searchModal: {
       query: '',
       since: '',
       until: '',
@@ -26,10 +26,10 @@ const tweetHistory = new Vue({
   },
   methods: {
     resetPage: function() {
-      this.modal.query = this.$route.query.query
-      this.modal.since = this.$route.query.since
-      this.modal.until = this.$route.query.until
-      this.modal.targetId = this.$route.query.targetId
+      this.searchModal.query = this.$route.query.query
+      this.searchModal.since = this.$route.query.since
+      this.searchModal.until = this.$route.query.until
+      this.searchModal.targetId = this.$route.query.targetId
 
       this.tweets = []
       this.allCount = 0
@@ -152,11 +152,11 @@ const tweetHistory = new Vue({
     },
     search: function() {
       const params = {}
-      if(this.modal.targetId > 0) {
-        params['targetId'] = this.modal.targetId
+      if(this.searchModal.targetId > 0) {
+        params['targetId'] = this.searchModal.targetId
       } else {
         const setParam = ((name) => {
-          const modalVal = eval('this.modal.' + name)
+          const modalVal = eval('this.searchModal.' + name)
           if(modalVal != '') {
             params[name] = modalVal
           }
