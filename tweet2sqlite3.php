@@ -145,6 +145,7 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
         }
     }
     $searches = array_map(function($val){
+        $val = htmlspecialchars($val, ENT_NOQUOTES);
         return "%${val}%";
     }, $searches);
 
