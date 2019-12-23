@@ -27,7 +27,7 @@
     <b-container>
       <div v-for="tweet in tweets" :key="tweet.id" class="item">
 
-        <div class="tweetItem">
+        <div class="tweetItem mouseOver" @click="openTweetModal(tweet)">
           <p>{{ getFullText(tweet, true) }}</p>
 
           <b-row v-if="hasPhoto(tweet)" class="medias">
@@ -75,6 +75,19 @@
       </b-form-group>
     </b-modal>
 
+    <b-modal ref="tweetModal" centered hide-header hide-footer>
+      <div class="tweet" v-if="selectedTweet !== undefined">
+        <p>{{ getFullText(selectedTweet, false) }}</p>
+        <p class="via text-right">
+          <span class="mr-2">via {{ getVia(selectedTweet) }}</span>{{ getDateTime(selectedTweet) }}</p>
+
+        <div class="tweetOption mouseOver linkbox" @click="closeTweetModal()">
+          <b-link :href="`https://twitter.com/status/status/${selectedTweet.id}`" target="_blank"></b-link>
+          Open Tweet
+        </div>
+        <div class="tweetOption mouseOver" @click="showBeforeAfterTweet(selectedTweet)">前後のツイートを表示</div>
+      </div>
+    </b-modal>
   </div>
 
   <script src="https://unpkg.com/vue/dist/vue.min.js"></script>

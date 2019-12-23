@@ -15,6 +15,7 @@ const tweetHistory = new Vue({
       until: '',
       targetId: '',
     },
+    selectedTweet: undefined,
   },
   mounted: function() {
     this.resetPage()
@@ -138,6 +139,9 @@ const tweetHistory = new Vue({
       })
       return variants[0].url
     },
+    getVia: function(tweet) {
+      return tweet.source.replace(/<.+?>/g, '')
+    },
     getDateTime: function(tweet) {
       const d = new Date(tweet.created_at)
       const yyyy = d.getFullYear()
@@ -171,6 +175,18 @@ const tweetHistory = new Vue({
       if(Object.keys(params).length !== 0 && !isSameQuery) {
         router.push({query: params})
       }
+    },
+    openTweetModal: function(tweet) {
+      this.selectedTweet = tweet
+      this.$refs.tweetModal.show()
+    },
+    closeTweetModal: function() {
+      this.$refs.tweetModal.hide()
+    },
+    showBeforeAfterTweet: function(tweet) {
+      this.searchModal.targetId = tweet.id
+      this.search()
+      this.closeTweetModal()
     },
   },
   computed: {

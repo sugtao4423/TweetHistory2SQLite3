@@ -30,7 +30,8 @@ nav {
 .tweetItem {
   padding: 0.6em 0.4em;
 }
-.tweetItem > p {
+.tweetItem > p,
+.modal-content .tweet p {
   margin: 0;
   white-space: pre-line;
   word-break: break-word;
@@ -49,4 +50,28 @@ nav {
 hr {
   margin: 0;
   border-top: 1px solid #bbb;
+}
+
+.linkbox {
+  position: relative;
+}
+.linkbox a {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height:100%;
+  width: 100%;
+}
+
+.mouseOver:hover {
+  background-color: #d6d6d6;
+}
+
+.modal-content .tweet .via {
+  font-size: 0.7em;
+  margin-top: 0.2em;
+}
+.modal-content .tweetOption {
+  padding: 0.8em 0 0.8em 1.2em;
+  cursor: pointer;
 }
