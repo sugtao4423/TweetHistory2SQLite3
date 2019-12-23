@@ -7,6 +7,7 @@ const tweetHistory = new Vue({
     apiUrl: './tweet2sqlite3.php',
     page: 1,
     tweets: [],
+    allCount: 0,
     procTime: 0,
     modal: {
       query: '',
@@ -25,6 +26,8 @@ const tweetHistory = new Vue({
       this.modal.query = this.$route.query.query
 
       this.tweets = []
+      this.allCount = 0
+      this.procTime = 0
       this.page = 1
       this.$refs.infiniteLoading.stateChanger.reset()
     },
@@ -43,6 +46,7 @@ const tweetHistory = new Vue({
             $state.complete()
           }
           this.tweets = this.tweets.concat(getData.reverse())
+          this.allCount = res.allCount
           this.procTime = res.procTime
         })
         .finally(() => {
@@ -142,6 +146,14 @@ const tweetHistory = new Vue({
       if(Object.keys(params).length !== 0) {
         router.push({query: params})
       }
+    },
+  },
+  computed: {
+    allTweetCount: function() {
+      return this.allCount.toLocaleString()
+    },
+    holdTweetCount: function() {
+      return this.tweets.length.toLocaleString()
     },
   },
 })

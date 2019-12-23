@@ -16,6 +16,9 @@
       <b-container>
         <b-navbar-brand :to="{path: '/'}">My Tweets</b-navbar-brand>
         <b-navbar-nav>
+          <b-nav-text>{{ holdTweetCount }}/{{ allTweetCount }}</b-nav-text>
+        </b-navbar-nav>
+        <b-navbar-nav>
           <b-nav-item class="searchLink" v-b-modal.modal>Search</b-nav-item>
         </b-navbar-nav>
       </b-container>
