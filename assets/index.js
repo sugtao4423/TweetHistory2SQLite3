@@ -94,7 +94,23 @@ const tweetHistory = new Vue({
       return tweet.extended_entities !== undefined && tweet.extended_entities.media !== undefined && tweet.extended_entities.media[0].type === 'video'
     },
     getVideoAspect: function(tweet, delimiter = 'by') {
-      return tweet.extended_entities.media[0].video_info.aspect_ratio.join(delimiter)
+      const supportAspects = [
+        [1, 1], [4, 3], [16, 9], [21, 9]
+      ]
+      const defaultAspect = [16, 9]
+      const tweetAspect = tweet.extended_entities.media[0].video_info.aspect_ratio
+      let isSupport = false
+      supportAspects.forEach(aspect => {
+        if(aspect[0] == tweetAspect[0] && aspect[1] == tweetAspect[1]) {
+          isSupport = true
+          return
+        }
+      })
+      if(isSupport) {
+        return tweetAspect.join(delimiter)
+      } else {
+        return defaultAspect.join(delimiter)
+      }
     },
     getHiBitrateVideoUrl: function(tweet) {
       const variants = tweet.extended_entities.media[0].video_info.variants.concat()
