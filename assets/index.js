@@ -48,18 +48,16 @@ const tweetHistory = new Vue({
         })
         .then((res) => {
           const getData = res.data
-          if(getData.length === 0) {
-            $state.complete()
-          }
           this.tweets = this.tweets.concat(getData.reverse())
           this.allCount = res.allCount
           this.procTime = res.procTime
-          if(this.$route.query.targetId > 0) {
-            $state.complete()
-          }
         })
         .finally(() => {
-          $state.loaded()
+          if(this.tweets.length >= this.allCount) {
+            $state.complete()
+          } else {
+            $state.loaded()
+          }
         })
     },
     buildRequestUrl: function() {
