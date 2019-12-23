@@ -107,6 +107,9 @@ const tweetHistory = new Vue({
         .replace(/&gt;/g, '>')
         .trim()
     },
+    hasUserMention: function(tweet) {
+      return tweet.entities !== undefined && tweet.entities.user_mentions !== undefined
+    },
     hasUrl: function(tweet) {
       return tweet.entities !== undefined && tweet.entities.urls !== undefined
     },

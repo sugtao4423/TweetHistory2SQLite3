@@ -88,6 +88,14 @@
         </div>
         <div class="tweetOption mouseOver" @click="showBeforeAfterTweet(selectedTweet)">前後のツイートを表示</div>
 
+        <div v-if="hasUserMention(selectedTweet)">
+          <div v-for="mention in selectedTweet.entities.user_mentions" @click="closeTweetModal()"
+            class="tweetOption mouseOver linkbox overflow-auto">
+            <b-link :href="`https://twitter.com/${mention.screen_name}`" target="_blank"></b-link>
+            @{{ mention.screen_name }}
+          </div>
+        </div>
+
         <div v-if="hasUrl(selectedTweet)">
           <div v-for="url in selectedTweet.entities.urls" @click="closeTweetModal()"
             class="tweetOption mouseOver linkbox overflow-auto">
