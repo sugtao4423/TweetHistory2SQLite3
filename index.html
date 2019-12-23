@@ -77,10 +77,12 @@
     </b-modal>
 
     <b-modal ref="tweetModal" centered hide-header hide-footer>
-      <div class="tweet" v-if="selectedTweet !== undefined">
-        <p>{{ getFullText(selectedTweet, false) }}</p>
-        <p class="via text-right">
-          <span class="mr-2">via {{ getVia(selectedTweet) }}</span>{{ getDateTime(selectedTweet) }}</p>
+      <div v-if="selectedTweet !== undefined">
+        <div class="tweet">
+          <p>{{ getFullText(selectedTweet, false) }}</p>
+          <p class="via text-right">
+            <span class="mr-2">via {{ getVia(selectedTweet) }}</span>{{ getDateTime(selectedTweet) }}</p>
+        </div>
 
         <div class="tweetOption mouseOver linkbox" @click="closeTweetModal()">
           <b-link :href="`https://twitter.com/status/status/${selectedTweet.id}`" target="_blank"></b-link>
