@@ -87,6 +87,14 @@
           Open Tweet
         </div>
         <div class="tweetOption mouseOver" @click="showBeforeAfterTweet(selectedTweet)">前後のツイートを表示</div>
+
+        <div v-if="hasUrl(selectedTweet)">
+          <div v-for="url in selectedTweet.entities.urls" @click="closeTweetModal()"
+            class="tweetOption mouseOver linkbox overflow-auto">
+            <b-link :href="url.expanded_url" target="_blank"></b-link>
+            {{ url.expanded_url }}
+          </div>
+        </div>
       </div>
     </b-modal>
   </div>

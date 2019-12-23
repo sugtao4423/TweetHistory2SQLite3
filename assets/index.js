@@ -79,7 +79,7 @@ const tweetHistory = new Vue({
     },
     getFullText: function(tweet, removeMediaUrls = false) {
       let fullText = tweet.full_text
-      if(tweet.entities !== undefined && tweet.entities.urls !== undefined) {
+      if(this.hasUrl(tweet)) {
         tweet.entities.urls.forEach(url => {
           fullText = fullText.replace(url.url, url.expanded_url)
         })
@@ -106,6 +106,9 @@ const tweetHistory = new Vue({
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .trim()
+    },
+    hasUrl: function(tweet) {
+      return tweet.entities !== undefined && tweet.entities.urls !== undefined
     },
     hasPhoto: function(tweet) {
       return tweet.extended_entities !== undefined && tweet.extended_entities.media !== undefined && tweet.extended_entities.media[0].type === 'photo'
