@@ -217,7 +217,8 @@ function getBeforeAfterTweets(string $targetId, int $count): string{
         'SELECT tweets.json FROM tweets, targetRow ' .
         "WHERE tweets.ROWID BETWEEN targetRow.ROWID - ${count} AND targetRow.ROWID + ${count}";
     $dbData = getDBData($sql, $targetId);
-    return '{"procTime":' . $dbData['procTime'] .',"data":[' . implode(',', $dbData['json']) . ']}';
+    $allCount = $count * 2 + 1;
+    return '{"procTime":' . $dbData['procTime'] .',"allCount":' . $allCount . ',"data":[' . implode(',', $dbData['json']) . ']}';
 }
 
 function getDBData(string $sql, string ...$bindArgs): array{
