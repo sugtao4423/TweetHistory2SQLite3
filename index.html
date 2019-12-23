@@ -57,7 +57,7 @@
 
     <b-modal id="modal" title="Search" ok-only ok-title="Search" ok-variant="info" @ok="search()"
       @shown="$refs.inputQuery.focus()">
-      <input type="text" class="form-control" placeholder="Search Text" v-model="modal.query" ref="inputQuery">
+      <b-form-input placeholder="Search Text" v-model="modal.query" ref="inputQuery"></b-form-input>
     </b-modal>
 
   </div>
