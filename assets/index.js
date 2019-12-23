@@ -11,6 +11,8 @@ const tweetHistory = new Vue({
     procTime: 0,
     modal: {
       query: '',
+      since: '',
+      until: '',
     },
   },
   mounted: function() {
@@ -24,6 +26,8 @@ const tweetHistory = new Vue({
   methods: {
     resetPage: function() {
       this.modal.query = this.$route.query.query
+      this.modal.since = this.$route.query.since
+      this.modal.until = this.$route.query.until
 
       this.tweets = []
       this.allCount = 0
@@ -55,10 +59,15 @@ const tweetHistory = new Vue({
     },
     buildRequestUrl: function() {
       let reqUrl = this.apiUrl + '?page=' + this.page++
-      const query = this.$route.query.query
-      if(query !== undefined) {
-        reqUrl += '&query=' + encodeURIComponent(query)
-      }
+      const append = ((name) => {
+        const val = eval('this.$route.query.' + name)
+        if(val !== undefined) {
+          reqUrl += `&${name}=` + encodeURIComponent(val)
+        }
+      })
+      append('query')
+      append('since')
+      append('until')
       return reqUrl
     },
     getFullText: function(tweet, removeMediaUrls = false) {
@@ -138,12 +147,19 @@ const tweetHistory = new Vue({
       return `0${num}`.slice(-2)
     },
     search: function() {
-      const params = []
-      const searchQuery = this.modal.query
-      if(searchQuery != '' && searchQuery !== this.$route.query.query) {
-        params['query'] = searchQuery
-      }
-      if(Object.keys(params).length !== 0) {
+      const params = {}
+      const setParam = ((name) => {
+        const modalVal = eval('this.modal.' + name)
+        if(modalVal != '') {
+          params[name] = modalVal
+        }
+      })
+      setParam('query')
+      setParam('since')
+      setParam('until')
+
+      const isSameQuery = JSON.stringify(params) == JSON.stringify(this.$route.query)
+      if(Object.keys(params).length !== 0 && !isSameQuery) {
         router.push({query: params})
       }
     },

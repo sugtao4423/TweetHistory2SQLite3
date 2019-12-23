@@ -57,7 +57,17 @@
 
     <b-modal id="modal" title="Search" ok-only ok-title="Search" ok-variant="info" @ok="search()"
       @shown="$refs.inputQuery.focus()">
-      <b-form-input placeholder="Search Text" v-model="modal.query" ref="inputQuery"></b-form-input>
+      <b-input-group>
+        <b-form-input placeholder="Search Text" v-model="modal.query" ref="inputQuery"></b-form-input>
+      </b-input-group>
+      <b-input-group class="mt-4">
+        <b-input-group prepend="Since">
+          <b-form-input placeholder="yyyy-mm-dd [hh-mm-ss]" v-model="modal.since"></b-form-input>
+        </b-input-group>
+        <b-input-group class="mt-3" prepend="Until">
+          <b-form-input placeholder="yyyy-mm-dd [hh-mm-ss]" v-model="modal.until"></b-form-input>
+        </b-input-group>
+      </b-input-group>
     </b-modal>
 
   </div>
