@@ -31,7 +31,7 @@
           <p>{{ getFullText(tweet, true) }}</p>
 
           <b-row v-if="hasPhoto(tweet)" class="medias">
-            <b-col v-for="media in tweet.extended_entities.media">
+            <b-col v-for="media in tweet.extended_entities.media" :key="media.id">
               <b-link :href="media.media_url_https" target="_blank">
                 <b-img :src="`${media.media_url_https}:thumb`" thumbnail fluid @click="clickMedia()"></b-img>
               </b-link>
