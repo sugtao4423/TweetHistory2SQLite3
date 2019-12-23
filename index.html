@@ -33,7 +33,7 @@
           <b-row v-if="hasPhoto(tweet)" class="medias">
             <b-col v-for="media in tweet.extended_entities.media">
               <b-link :href="media.media_url_https" target="_blank">
-                <b-img :src="`${media.media_url_https}:thumb`" thumbnail fluid></b-img>
+                <b-img :src="`${media.media_url_https}:thumb`" thumbnail fluid @click="clickMedia()"></b-img>
               </b-link>
             </b-col>
           </b-row>
@@ -41,7 +41,8 @@
           <b-row v-if="hasVideo(tweet)" class="medias">
             <b-col>
               <b-embed type="video" :aspect="getVideoAspect(tweet)" :src="getHiBitrateVideoUrl(tweet)"
-                :poster="tweet.extended_entities.media[0].media_url_https" allowfullscreen controls preload="none">
+                :poster="tweet.extended_entities.media[0].media_url_https" allowfullscreen controls preload="none"
+                @click="clickMedia()">
               </b-embed>
             </b-col>
           </b-row>

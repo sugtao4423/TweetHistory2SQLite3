@@ -15,6 +15,7 @@ const tweetHistory = new Vue({
       until: '',
       targetId: '',
     },
+    dontShowTweetModal: false,
     selectedTweet: undefined,
   },
   mounted: function() {
@@ -176,9 +177,15 @@ const tweetHistory = new Vue({
         router.push({query: params})
       }
     },
+    clickMedia: function() {
+      this.dontShowTweetModal = true
+    },
     openTweetModal: function(tweet) {
-      this.selectedTweet = tweet
-      this.$refs.tweetModal.show()
+      if(!this.dontShowTweetModal) {
+        this.selectedTweet = tweet
+        this.$refs.tweetModal.show()
+      }
+      this.dontShowTweetModal = false
     },
     closeTweetModal: function() {
       this.$refs.tweetModal.hide()
