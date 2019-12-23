@@ -68,6 +68,11 @@
           <b-form-input placeholder="yyyy-mm-dd [hh-mm-ss]" v-model="modal.until"></b-form-input>
         </b-input-group>
       </b-input-group>
+      <b-form-group class="mt-5" label="前後のツイートを表示" label-for="targetId">
+        <b-input-group id="targetId" prepend="status id">
+          <b-form-input type="number" v-model="modal.targetId"></b-form-input>
+        </b-input-group>
+      </b-form-group>
     </b-modal>
 
   </div>
