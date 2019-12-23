@@ -57,6 +57,32 @@ const tweetHistory = new Vue({
       }
       return reqUrl
     },
+    getFullText: function(tweet, removeMediaUrls = false) {
+      let fullText = tweet.full_text
+      if(tweet.entities !== undefined && tweet.entities.urls !== undefined) {
+        tweet.entities.urls.forEach(url => {
+          fullText = fullText.replace(url.url, url.expanded_url)
+        })
+      }
+      if(this.hasPhoto(tweet)) {
+        const photoUrls = []
+        tweet.extended_entities.media.forEach(media => {
+          photoUrls.push(media.media_url_https)
+        })
+        let replaceValue = ''
+        if(!removeMediaUrls) {
+          replaceValue = photoUrls.join(' ')
+        }
+        fullText = fullText.replace(tweet.extended_entities.media[0].url, replaceValue)
+      } else if(this.hasVideo(tweet)) {
+        let replaceValue = ''
+        if(!removeMediaUrls) {
+          replaceValue = this.getHiBitrateVideoUrl(tweet)
+        }
+        fullText = fullText.replace(tweet.extended_entities.media[0].url, replaceValue)
+      }
+      return fullText.trim()
+    },
     hasPhoto: function(tweet) {
       return tweet.extended_entities !== undefined && tweet.extended_entities.media !== undefined && tweet.extended_entities.media[0].type === 'photo'
     },

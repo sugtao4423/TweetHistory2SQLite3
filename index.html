@@ -25,7 +25,7 @@
       <div v-for="tweet in tweets" :key="tweet.id" class="item">
 
         <div class="tweetItem">
-          <p>{{ tweet.full_text }}</p>
+          <p>{{ getFullText(tweet, true) }}</p>
 
           <b-row v-if="hasPhoto(tweet)" class="medias">
             <b-col v-for="media in tweet.extended_entities.media">
