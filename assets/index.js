@@ -47,14 +47,14 @@ const tweetHistory = new Vue({
       this.abortController = new AbortController()
 
       fetch(this.buildRequestUrl(), {signal: this.abortController.signal})
-        .then((res) => {
+        .then(res => {
           if(res.ok) {
             return res.json()
           } else {
             this.$refs.infiniteLoading.stateChanger.error()
           }
         })
-        .then((res) => {
+        .then(res => {
           const getData = res.data
           this.tweets = this.tweets.concat(getData.reverse())
           this.allCount = res.allCount
@@ -70,7 +70,7 @@ const tweetHistory = new Vue({
           }
           this.abortController = undefined
         })
-        .catch((error) => {
+        .catch(error => {
           if(!(error instanceof DOMException && error.code === 20)) {
             console.error(error)
             this.$refs.infiniteLoading.stateChanger.error()
@@ -79,7 +79,7 @@ const tweetHistory = new Vue({
     },
     buildRequestUrl: function() {
       let reqUrl = this.apiUrl + '?page=' + this.page++
-      const append = ((name) => {
+      const append = (name => {
         const val = eval('this.$route.query.' + name)
         if(val !== undefined) {
           reqUrl += `&${name}=` + encodeURIComponent(val)
@@ -181,7 +181,7 @@ const tweetHistory = new Vue({
       if(this.searchModal.targetId > 0) {
         params['targetId'] = this.searchModal.targetId
       } else {
-        const setParam = ((name) => {
+        const setParam = (name => {
           const modalVal = eval('this.searchModal.' + name)
           if(modalVal != '') {
             params[name] = modalVal
