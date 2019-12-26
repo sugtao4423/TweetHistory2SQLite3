@@ -55,7 +55,9 @@ const tweetHistory = new Vue({
           this.procTime = res.procTime
         })
         .finally(() => {
-          if(this.tweets.length >= this.allCount) {
+          if(this.tweets.length == 0) {
+            $state.complete()
+          } else if(this.tweets.length >= this.allCount) {
             $state.loaded()
             $state.complete()
           } else {
