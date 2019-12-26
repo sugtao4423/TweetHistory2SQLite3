@@ -9,6 +9,7 @@ const tweetHistory = new Vue({
     tweets: [],
     allCount: 0,
     procTime: 0,
+    abortController: undefined,
     searchModal: {
       query: '',
       since: '',
@@ -40,7 +41,12 @@ const tweetHistory = new Vue({
       this.$refs.infiniteLoading.stateChanger.reset()
     },
     infiniteHandler: function($state) {
-      fetch(this.buildRequestUrl())
+      if(this.abortController !== undefined) {
+        this.abortController.abort()
+      }
+      this.abortController = new AbortController()
+
+      fetch(this.buildRequestUrl(), {signal: this.abortController.signal})
         .then((res) => {
           if(res.ok) {
             return res.json()
@@ -53,8 +59,7 @@ const tweetHistory = new Vue({
           this.tweets = this.tweets.concat(getData.reverse())
           this.allCount = res.allCount
           this.procTime = res.procTime
-        })
-        .finally(() => {
+
           if(this.tweets.length == 0) {
             $state.complete()
           } else if(this.tweets.length >= this.allCount) {
@@ -62,6 +67,13 @@ const tweetHistory = new Vue({
             $state.complete()
           } else {
             $state.loaded()
+          }
+          this.abortController = undefined
+        })
+        .catch((error) => {
+          if(!(error instanceof DOMException && error.code === 20)) {
+            console.error(error)
+            this.$refs.infiniteLoading.stateChanger.error()
           }
         })
     },
