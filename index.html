@@ -15,7 +15,7 @@
     <b-navbar fixed="top" variant="light" toggleable="">
       <b-container>
         <b-navbar-brand :to="{path: '/'}">My Tweets</b-navbar-brand>
-        <b-navbar-nav>
+        <b-navbar-nav v-b-tooltip.hover :title="msProcTime">
           <b-nav-text>{{ holdTweetCount }}/{{ allTweetCount }}</b-nav-text>
         </b-navbar-nav>
         <b-navbar-nav>

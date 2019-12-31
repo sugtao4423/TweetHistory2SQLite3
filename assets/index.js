@@ -223,5 +223,8 @@ const tweetHistory = new Vue({
     holdTweetCount: function() {
       return this.tweets.length.toLocaleString()
     },
+    msProcTime: function() {
+      return `${this.procTime.toLocaleString()} ms`
+    },
   },
 })
