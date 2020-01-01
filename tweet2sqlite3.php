@@ -21,8 +21,8 @@ $beforeAfterTargetId = $_GET['targetId'] ?? null;
 
 header('Content-Type: application/json');
 try{
-    $db = new SQLite3(SQLITE3_DB);
-    $db->enableExceptions(true);
+    $pdo = new PDO('sqlite:' . SQLITE3_DB);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     if(isset($query)){
         $tweets = searchTweets($query, $page, $count);
@@ -34,7 +34,7 @@ try{
     }
     echo $tweets;
 
-    $db->close();
+    $pdo = null;
 }catch(Exception $e){
     $res = [ 'error' => [
         'code' => $e->getCode(),
@@ -222,22 +222,15 @@ function getBeforeAfterTweets(string $targetId, int $count): string{
 }
 
 function getDBData(string $sql, string ...$bindArgs): array{
-    global $db;
+    global $pdo;
     $startTime = microtime(true);
     $data = [];
-    $stmt = $db->prepare($sql);
-    for($i = 0; $i < count($bindArgs); $i++){
-        $stmt->bindValue($i + 1, $bindArgs[$i], SQLITE3_TEXT);
-    }
-    $query = $stmt->execute();
-    $columnRange = range(0, $query->numColumns() - 1);
-    $columnNames = [];
-    foreach($columnRange as $i){
-        $columnNames[] = $query->columnName($i);
-    }
-    while($q = $query->fetchArray(SQLITE3_ASSOC)){
-        foreach($columnRange as $i){
-            $data[$columnNames[$i]][] = $q[$columnNames[$i]];
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($bindArgs);
+    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if(!empty($result)){
+        foreach(array_keys($result[0]) as $k){
+            $data[$k] = array_column($result, $k);
         }
     }
     $procTime = microtime(true) - $startTime;
