@@ -67,10 +67,10 @@ function createDB(){
 
     echo "Loading all tweets...\n";
     echo '0 tweets';
-    $db = new SQLite3($dbPath);
-    $db->enableExceptions(true);
-    $db->exec('BEGIN');
-    $db->exec('CREATE TABLE temp (json JSON, created_at DATE)');
+    $pdo = new PDO("sqlite:${dbPath}");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->beginTransaction();
+    $pdo->exec('CREATE TABLE temp (json JSON, created_at DATE)');
 
     $insertSql = 'INSERT INTO temp VALUES (?, ?)';
     $tweetCount = 0;
@@ -90,9 +90,9 @@ function createDB(){
                     unset($j['entities']);
                 }
             }
-            $stmt = $db->prepare($insertSql);
-            $stmt->bindValue(1, json_encode($j, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-            $stmt->bindValue(2, strtotime($j['created_at']), SQLITE3_INTEGER);
+            $stmt = $pdo->prepare($insertSql);
+            $stmt->bindValue(1, json_encode($j, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $stmt->bindValue(2, strtotime($j['created_at']), PDO::PARAM_INT);
             $stmt->execute();
             $tweetCount++;
             echo "\r${tweetCount} tweets";
@@ -100,13 +100,13 @@ function createDB(){
     }
 
     echo "\nSorting tweets...\n";
-    $db->exec('CREATE TABLE tweets (json JSON, created_at DATE)');
-    $db->exec("INSERT INTO tweets SELECT json, created_at FROM temp ORDER BY CAST(JSON_EXTRACT(json, '$.id') AS INTEGER) ASC");
-    $db->exec('DROP TABLE temp');
-    $db->exec('COMMIT');
+    $pdo->exec('CREATE TABLE tweets (json JSON, created_at DATE)');
+    $pdo->exec("INSERT INTO tweets SELECT json, created_at FROM temp ORDER BY CAST(JSON_EXTRACT(json, '$.id') AS INTEGER) ASC");
+    $pdo->exec('DROP TABLE temp');
+    $pdo->commit();
     echo "Optimizing database...\n";
-    $db->exec('VACUUM');
-    $db->close();
+    $pdo->exec('VACUUM');
+    $pdo = null;
     echo "Done!\n";
 }
 
