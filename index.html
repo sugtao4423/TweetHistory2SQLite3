@@ -88,7 +88,10 @@
           <b-link :href="`https://twitter.com/status/status/${selectedTweet.id}`" target="_blank"></b-link>
           Open Tweet
         </div>
-        <div class="tweetOption mouseOver" @click="showBeforeAfterTweet(selectedTweet)">前後のツイートを表示</div>
+        <div class="tweetOption mouseOver linkbox" @click="closeTweetModal()">
+          <b-link :to="{path: '/', query: {targetId: selectedTweet.id}}"></b-link>
+          前後のツイートを表示
+        </div>
 
         <div v-if="hasUserMention(selectedTweet)">
           <div v-for="mention in selectedTweet.entities.user_mentions" @click="closeTweetModal()"

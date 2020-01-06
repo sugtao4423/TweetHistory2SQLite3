@@ -210,11 +210,6 @@ const tweetHistory = new Vue({
     closeTweetModal: function() {
       this.$refs.tweetModal.hide()
     },
-    showBeforeAfterTweet: function(tweet) {
-      this.searchModal.targetId = tweet.id
-      this.search()
-      this.closeTweetModal()
-    },
   },
   computed: {
     allTweetCount: function() {
