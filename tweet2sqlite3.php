@@ -79,20 +79,21 @@ function createDB(){
         $rawJson = preg_replace('/window\.YTD\.tweet\.part.+ =/', '', $rawJson);
         $json = json_decode($rawJson, true);
         foreach($json as $j){
-            if(isset($j['coordinates']['coordinates'])){
-                $j['coordinates']['coordinates'] = array_map('floatval', $j['coordinates']['coordinates']);
+            $tweet = $j['tweet'];
+            if(isset($tweet['coordinates']['coordinates'])){
+                $tweet['coordinates']['coordinates'] = array_map('floatval', $tweet['coordinates']['coordinates']);
             }
-            if(isset($j['entities'])){
-                $j['entities'] = array_filter($j['entities'], function($val){
+            if(isset($tweet['entities'])){
+                $tweet['entities'] = array_filter($tweet['entities'], function($val){
                     return is_array($val) && !empty($val);
                 });
-                if(empty($j['entities'])){
-                    unset($j['entities']);
+                if(empty($tweet['entities'])){
+                    unset($tweet['entities']);
                 }
             }
             $stmt = $pdo->prepare($insertSql);
-            $stmt->bindValue(1, json_encode($j, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-            $stmt->bindValue(2, strtotime($j['created_at']), PDO::PARAM_INT);
+            $stmt->bindValue(1, json_encode($tweet, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $stmt->bindValue(2, strtotime($tweet['created_at']), PDO::PARAM_INT);
             $stmt->execute();
             $tweetCount++;
             echo "\r${tweetCount} tweets";
