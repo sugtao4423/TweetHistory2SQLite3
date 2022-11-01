@@ -1,8 +1,9 @@
 <?php
+
 declare(strict_types=1);
 
 $isCreateDB = isset($argv[1]);
-if($isCreateDB){
+if ($isCreateDB) {
     createDB();
     exit(0);
 }
@@ -20,23 +21,23 @@ $query = $_GET['query'] ?? null;
 $beforeAfterTargetId = $_GET['targetId'] ?? null;
 
 header('Content-Type: application/json');
-try{
+try {
     $pdo = new PDO('sqlite:' . SQLITE3_DB);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    if(isset($query)){
+    if (isset($query)) {
         $tweets = searchTweets($query, $page, $count);
-    }else if(isset($beforeAfterTargetId)){
+    } else if (isset($beforeAfterTargetId)) {
         $count = intval($_GET['count'] ?? DEFAULT_BEFORE_AFTER_COUNT);
         $tweets = getBeforeAfterTweets($beforeAfterTargetId, $count);
-    }else{
+    } else {
         $tweets = getLatestTweets($page, $count);
     }
     echo $tweets;
 
     $pdo = null;
-}catch(Exception $e){
-    $res = [ 'error' => [
+} catch (Exception $e) {
+    $res = ['error' => [
         'code' => $e->getCode(),
         'message' => $e->getMessage()
     ]];
@@ -44,22 +45,23 @@ try{
     echo json_encode($res, JSON_UNESCAPED_UNICODE);
 }
 
-function createDB(){
+function createDB()
+{
     global $argv;
     $twitterDataDir = $argv[1];
     $dbPath = $argv[2] ?? __DIR__ . '/tweets.sqlite3';
 
-    if(!is_dir($twitterDataDir)){
+    if (!is_dir($twitterDataDir)) {
         echo 'Please set Twitter Data directory.';
         exit(1);
     }
 
-    if(file_exists($dbPath)){
+    if (file_exists($dbPath)) {
         echo 'Are you sure you want to delete the existing database? ';
         $input = trim(fgets(STDIN));
-        if($input === 'y' || $input === 'yes'){
+        if ($input === 'y' || $input === 'yes') {
             unlink($dbPath);
-        }else{
+        } else {
             echo "Please rename or delete old database.\n";
             exit(1);
         }
@@ -74,20 +76,20 @@ function createDB(){
 
     $insertSql = 'INSERT INTO temp VALUES (?, ?)';
     $tweetCount = 0;
-    foreach(glob("${twitterDataDir}/tweet*.js") as $js){
+    foreach (glob("${twitterDataDir}/tweet*.js") as $js) {
         $rawJson = file_get_contents($js);
         $rawJson = preg_replace('/window\.YTD\.tweets\.part.+ =/', '', $rawJson);
         $json = json_decode($rawJson, true);
-        foreach($json as $j){
+        foreach ($json as $j) {
             $tweet = $j['tweet'];
-            if(isset($tweet['coordinates']['coordinates'])){
+            if (isset($tweet['coordinates']['coordinates'])) {
                 $tweet['coordinates']['coordinates'] = array_map('floatval', $tweet['coordinates']['coordinates']);
             }
-            if(isset($tweet['entities'])){
-                $tweet['entities'] = array_filter($tweet['entities'], function($val){
+            if (isset($tweet['entities'])) {
+                $tweet['entities'] = array_filter($tweet['entities'], function ($val) {
                     return is_array($val) && !empty($val);
                 });
-                if(empty($tweet['entities'])){
+                if (empty($tweet['entities'])) {
                     unset($tweet['entities']);
                 }
             }
@@ -111,11 +113,12 @@ function createDB(){
     echo "Done!\n";
 }
 
-function getLatestTweets(int $page, int $count): string{
+function getLatestTweets(int $page, int $count): string
+{
     $offset = $page * $count;
     $sql = 'WITH targetRange AS (SELECT ROWID, json FROM tweets ' . getTargetRangeWhere() . '), ' .
-                'counts AS (SELECT COUNT(json) AS allCount FROM targetRange) ' .
-            "SELECT json, allCount FROM targetRange, counts LIMIT (SELECT allCount FROM counts LIMIT 1) - ${offset}, ${count}";
+        'counts AS (SELECT COUNT(json) AS allCount FROM targetRange) ' .
+        "SELECT json, allCount FROM targetRange, counts LIMIT (SELECT allCount FROM counts LIMIT 1) - ${offset}, ${count}";
     $dbData = getDBData($sql);
     $procTime = $dbData['procTime'];
     $allCount = intval($dbData['allCount'][0]);
@@ -123,29 +126,30 @@ function getLatestTweets(int $page, int $count): string{
     $rangeEnd = $rangeStart + $count;
     negative0($rangeStart);
     negative0($rangeEnd);
-    if($rangeStart === 0 && $rangeEnd === 0){
+    if ($rangeStart === 0 && $rangeEnd === 0) {
         $dbData['json'] = [];
-    }else if($rangeEnd < $count){
+    } else if ($rangeEnd < $count) {
         $dbData['json'] = array_slice($dbData['json'], 0, $rangeEnd);
     }
     return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $dbData['json']) . ']}';
 }
 
-function searchTweets(string $searchQuery, int $page, int $count): string{
+function searchTweets(string $searchQuery, int $page, int $count): string
+{
     $searches = [];
-    if(preg_match_all('/"(.+?)"/', $searchQuery, $m) === 1){
-        foreach($m[1] as $v){
+    if (preg_match_all('/"(.+?)"/', $searchQuery, $m) === 1) {
+        foreach ($m[1] as $v) {
             $searches[] = $v;
             $searchQuery = str_replace("\"$v\"", '', $searchQuery);
         }
     }
 
-    foreach(preg_split('/( |　)+/', $searchQuery) as $v){
-        if(mb_strlen($v) !== 0){
+    foreach (preg_split('/( |　)+/', $searchQuery) as $v) {
+        if (mb_strlen($v) !== 0) {
             $searches[] = $v;
         }
     }
-    $searches = array_map(function($val){
+    $searches = array_map(function ($val) {
         $val = htmlspecialchars($val, ENT_NOQUOTES);
         return "%${val}%";
     }, $searches);
@@ -163,74 +167,78 @@ function searchTweets(string $searchQuery, int $page, int $count): string{
     $rangeEnd = $rangeStart + $count;
     negative0($rangeStart);
     negative0($rangeEnd);
-    if($rangeStart === 0 && $rangeEnd === 0){
+    if ($rangeStart === 0 && $rangeEnd === 0) {
         $jsons = [];
-    }else{
+    } else {
         $count = ($rangeEnd < $count) ? $rangeEnd : $count;
         $jsons = array_slice($jsons, $rangeStart, $count);
     }
     return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
 }
 
-function getTargetRangeWhere(bool $includeWhere = true): string{
-    function toUnixTime($str): int{
-        if(is_null($str)){
+function getTargetRangeWhere(bool $includeWhere = true): string
+{
+    function toUnixTime($str): int
+    {
+        if (is_null($str)) {
             return -1;
         }
-        if(preg_match('/^[0-9]+$/', $str) === 1){
+        if (preg_match('/^[0-9]+$/', $str) === 1) {
             return intval($str);
-        }else{
+        } else {
             $decodeTime = strtotime($str);
-            if($decodeTime === false){
+            if ($decodeTime === false) {
                 http_response_code(400);
-                echo json_encode([ 'error' => [
+                echo json_encode(['error' => [
                     'code' => 400,
                     'message' => 'unsupported date format.'
                 ]]);
                 exit(1);
-            }else{
+            } else {
                 return $decodeTime;
             }
         }
     }
     $since = toUnixTime($_GET['since'] ?? null);
     $until = toUnixTime($_GET['until'] ?? null);
-    if($until >= 0){
+    if ($until >= 0) {
         $untilOnlyDate = date('His', $until) === '000000';
-        if($untilOnlyDate){
+        if ($untilOnlyDate) {
             $until += 86400 - 1;
         }
     }
     $prefix = $includeWhere ? 'WHERE' : '';
-    if($since >= 0 && $until >= 0){
+    if ($since >= 0 && $until >= 0) {
         return "$prefix created_at BETWEEN $since AND $until";
-    }else if($since >= 0){
+    } else if ($since >= 0) {
         return "$prefix created_at >= $since";
-    }else if($until >= 0){
+    } else if ($until >= 0) {
         return "$prefix created_at <= $until";
-    }else{
+    } else {
         return '';
     }
 }
 
-function getBeforeAfterTweets(string $targetId, int $count): string{
+function getBeforeAfterTweets(string $targetId, int $count): string
+{
     $sql = "WITH targetRow AS (SELECT ROWID FROM tweets WHERE JSON_EXTRACT(json, '$.id') = ?) " .
         'SELECT tweets.json FROM tweets, targetRow ' .
         "WHERE tweets.ROWID BETWEEN targetRow.ROWID - ${count} AND targetRow.ROWID + ${count}";
     $dbData = getDBData($sql, $targetId);
     $allCount = count($dbData['json']);
-    return '{"procTime":' . $dbData['procTime'] .',"allCount":' . $allCount . ',"data":[' . implode(',', $dbData['json']) . ']}';
+    return '{"procTime":' . $dbData['procTime'] . ',"allCount":' . $allCount . ',"data":[' . implode(',', $dbData['json']) . ']}';
 }
 
-function getDBData(string $sql, string ...$bindArgs): array{
+function getDBData(string $sql, string ...$bindArgs): array
+{
     global $pdo;
     $startTime = microtime(true);
     $data = [];
     $stmt = $pdo->prepare($sql);
     $stmt->execute($bindArgs);
     $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if(!empty($result)){
-        foreach(array_keys($result[0]) as $k){
+    if (!empty($result)) {
+        foreach (array_keys($result[0]) as $k) {
             $data[$k] = array_column($result, $k);
         }
     }
@@ -239,8 +247,9 @@ function getDBData(string $sql, string ...$bindArgs): array{
     return $data;
 }
 
-function negative0(int &$num){
-    if($num < 0){
+function negative0(int &$num)
+{
+    if ($num < 0) {
         $num = 0;
     }
 }
