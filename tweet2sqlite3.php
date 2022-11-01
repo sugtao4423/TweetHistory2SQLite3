@@ -76,7 +76,7 @@ function createDB(){
     $tweetCount = 0;
     foreach(glob("${twitterDataDir}/tweet*.js") as $js){
         $rawJson = file_get_contents($js);
-        $rawJson = preg_replace('/window\.YTD\.tweet\.part.+ =/', '', $rawJson);
+        $rawJson = preg_replace('/window\.YTD\.tweets\.part.+ =/', '', $rawJson);
         $json = json_decode($rawJson, true);
         foreach($json as $j){
             $tweet = $j['tweet'];
