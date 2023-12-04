@@ -69,14 +69,14 @@ function createDB()
 
     echo "Loading all tweets...\n";
     echo '0 tweets';
-    $pdo = new PDO("sqlite:${dbPath}");
+    $pdo = new PDO("sqlite:{$dbPath}");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->beginTransaction();
     $pdo->exec('CREATE TABLE temp (json JSON, created_at DATE)');
 
     $insertSql = 'INSERT INTO temp VALUES (?, ?)';
     $tweetCount = 0;
-    foreach (glob("${twitterDataDir}/tweet*.js") as $js) {
+    foreach (glob("{$twitterDataDir}/tweet*.js") as $js) {
         $rawJson = file_get_contents($js);
         $rawJson = preg_replace('/window\.YTD\.tweets\.part.+ =/', '', $rawJson);
         $json = json_decode($rawJson, true);
@@ -98,7 +98,7 @@ function createDB()
             $stmt->bindValue(2, strtotime($tweet['created_at']), PDO::PARAM_INT);
             $stmt->execute();
             $tweetCount++;
-            echo "\r${tweetCount} tweets";
+            echo "\r{$tweetCount} tweets";
         }
     }
 
@@ -118,7 +118,7 @@ function getLatestTweets(int $page, int $count): string
     $offset = $page * $count;
     $sql = 'WITH targetRange AS (SELECT ROWID, json FROM tweets ' . getTargetRangeWhere() . '), ' .
         'counts AS (SELECT COUNT(json) AS allCount FROM targetRange) ' .
-        "SELECT json, allCount FROM targetRange, counts LIMIT (SELECT allCount FROM counts LIMIT 1) - ${offset}, ${count}";
+        "SELECT json, allCount FROM targetRange, counts LIMIT (SELECT allCount FROM counts LIMIT 1) - {$offset}, {$count}";
     $dbData = getDBData($sql);
     $procTime = $dbData['procTime'];
     $allCount = intval($dbData['allCount'][0]);
@@ -131,7 +131,7 @@ function getLatestTweets(int $page, int $count): string
     } else if ($rangeEnd < $count) {
         $dbData['json'] = array_slice($dbData['json'], 0, $rangeEnd);
     }
-    return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $dbData['json']) . ']}';
+    return "{\"procTime\":{$procTime},\"allCount\":{$allCount},\"range\":[{$rangeStart},{$rangeEnd}],\"data\":[" . implode(',', $dbData['json']) . ']}';
 }
 
 function searchTweets(string $searchQuery, int $page, int $count): string
@@ -151,7 +151,7 @@ function searchTweets(string $searchQuery, int $page, int $count): string
     }
     $searches = array_map(function ($val) {
         $val = htmlspecialchars($val, ENT_NOQUOTES);
-        return "%${val}%";
+        return "%{$val}%";
     }, $searches);
 
     $sql = 'SELECT json FROM tweets WHERE ';
@@ -173,7 +173,7 @@ function searchTweets(string $searchQuery, int $page, int $count): string
         $count = ($rangeEnd < $count) ? $rangeEnd : $count;
         $jsons = array_slice($jsons, $rangeStart, $count);
     }
-    return "{\"procTime\":${procTime},\"allCount\":${allCount},\"range\":[${rangeStart},${rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
+    return "{\"procTime\":{$procTime},\"allCount\":{$allCount},\"range\":[{$rangeStart},{$rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
 }
 
 function getTargetRangeWhere(bool $includeWhere = true): string
@@ -223,7 +223,7 @@ function getBeforeAfterTweets(string $targetId, int $count): string
 {
     $sql = "WITH targetRow AS (SELECT ROWID FROM tweets WHERE JSON_EXTRACT(json, '$.id') = ?) " .
         'SELECT tweets.json FROM tweets, targetRow ' .
-        "WHERE tweets.ROWID BETWEEN targetRow.ROWID - ${count} AND targetRow.ROWID + ${count}";
+        "WHERE tweets.ROWID BETWEEN targetRow.ROWID - {$count} AND targetRow.ROWID + {$count}";
     $dbData = getDBData($sql, $targetId);
     $allCount = count($dbData['json']);
     return '{"procTime":' . $dbData['procTime'] . ',"allCount":' . $allCount . ',"data":[' . implode(',', $dbData['json']) . ']}';
