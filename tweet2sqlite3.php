@@ -148,6 +148,19 @@ function runQuery(PDO $pdo, string $sql, array $params = []): PDOStatement
     return $stmt;
 }
 
+function resolveIdRange(PDO $pdo, ?int $since, ?int $until): array
+{
+    $lo = 0;
+    $hi = PHP_INT_MAX;
+    if ($since !== null) {
+        $lo = (int)runQuery($pdo, 'SELECT id FROM tweets WHERE created_at >= ? ORDER BY created_at, id LIMIT 1', [$since])->fetchColumn();
+    }
+    if ($until !== null) {
+        $hi = (int)runQuery($pdo, 'SELECT id FROM tweets WHERE created_at <= ? ORDER BY created_at DESC, id DESC LIMIT 1', [$until])->fetchColumn();
+    }
+    return [$lo, $hi];
+}
+
 function appendTermConditions(array &$conds, array &$params, array $terms, bool $negate): void
 {
     $not = $negate ? 'NOT ' : '';
@@ -178,14 +191,14 @@ function appendRangeConditions(array &$conds, array &$params, ?int $since, ?int 
     }
 }
 
-function buildWhere(array $conds): string
-{
-    return $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
-}
-
 function escapeLike(string $s): string
 {
     return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
+}
+
+function buildWhere(array $conds): string
+{
+    return $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
 }
 
 function elapsedMs(float $startTime): int
@@ -193,19 +206,29 @@ function elapsedMs(float $startTime): int
     return (int)round((microtime(true) - $startTime) * 1000);
 }
 
-function fetchPage(PDO $pdo, string $whereSql, array $params, int $page, int $count): string
+function fetchPage(PDO $pdo, array $conds, array $params, ?int $since, ?int $until, int $page, int $count): string
 {
     $startTime = microtime(true);
 
-    $allCount = (int)runQuery($pdo, "SELECT COUNT(*) FROM tweets {$whereSql}", $params)->fetchColumn();
+    $countConds = $conds;
+    $countParams = $params;
+    appendRangeConditions($countConds, $countParams, $since, $until);
+    $allCount = (int)runQuery($pdo, 'SELECT COUNT(*) FROM tweets ' . buildWhere($countConds), $countParams)->fetchColumn();
 
     $offset = ($page - 1) * $count;
-    $jsons = runQuery(
-        $pdo,
-        "SELECT json FROM tweets {$whereSql} ORDER BY id DESC LIMIT ? OFFSET ?",
-        array_merge($params, [$count, $offset])
-    )->fetchAll(PDO::FETCH_COLUMN);
-    $jsons = array_reverse($jsons);
+    $jsons = [];
+    if ($offset < $allCount) {
+        [$lo, $hi] = resolveIdRange($pdo, $since, $until);
+        $conds[] = 'id BETWEEN ? AND ?';
+        $params[] = $lo;
+        $params[] = $hi;
+        $jsons = runQuery(
+            $pdo,
+            'SELECT json FROM tweets ' . buildWhere($conds) . ' ORDER BY id DESC LIMIT ? OFFSET ?',
+            array_merge($params, [$count, $offset])
+        )->fetchAll(PDO::FETCH_COLUMN);
+        $jsons = array_reverse($jsons);
+    }
 
     $rangeStart = max(0, $allCount - $page * $count);
     $rangeEnd = max(0, $allCount - $offset);
@@ -216,10 +239,7 @@ function fetchPage(PDO $pdo, string $whereSql, array $params, int $page, int $co
 
 function getLatestTweets(PDO $pdo, ?int $since, ?int $until, int $page, int $count): string
 {
-    $conds = [];
-    $params = [];
-    appendRangeConditions($conds, $params, $since, $until);
-    return fetchPage($pdo, buildWhere($conds), $params, $page, $count);
+    return fetchPage($pdo, [], [], $since, $until, $page, $count);
 }
 
 function searchTweets(PDO $pdo, string $searchQuery, ?int $since, ?int $until, int $page, int $count): string
@@ -239,7 +259,7 @@ function searchTweets(PDO $pdo, string $searchQuery, ?int $since, ?int $until, i
     appendTermConditions($conds, $params, $exclude, true);
     appendRangeConditions($conds, $params, $since, $until);
 
-    return fetchPage($pdo, buildWhere($conds), $params, $page, $count);
+    return fetchPage($pdo, $conds, $params, $since, $until, $page, $count);
 }
 
 function getBeforeAfterTweets(PDO $pdo, string $targetId, int $count): string
