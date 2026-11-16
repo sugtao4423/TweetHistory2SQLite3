@@ -2,63 +2,271 @@
 
 declare(strict_types=1);
 
-$isCreateDB = isset($argv[1]);
-if ($isCreateDB) {
-    createDB();
-    exit(0);
-}
-
 // default DB location
 define('SQLITE3_DB', __DIR__ . '/tweets.sqlite3');
 // default json count
 define('DEFAULT_COUNT', 50);
-//default before after tweets count
+// default before after tweets count
 define('DEFAULT_BEFORE_AFTER_COUNT', 5);
 
-$page = intval($_GET['page'] ?? 1);
-$count = intval($_GET['count'] ?? DEFAULT_COUNT);
-$query = $_GET['query'] ?? null;
-$beforeAfterTargetId = $_GET['targetId'] ?? null;
+define('FTS_MIN_LENGTH', 3);
 
-header('Content-Type: application/json');
-try {
-    $pdo = new PDO('sqlite:' . SQLITE3_DB);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    if (isset($query)) {
-        $tweets = searchTweets($query, $page, $count);
-    } else if (isset($beforeAfterTargetId)) {
-        $count = intval($_GET['count'] ?? DEFAULT_BEFORE_AFTER_COUNT);
-        $tweets = getBeforeAfterTweets($beforeAfterTargetId, $count);
-    } else {
-        $tweets = getLatestTweets($page, $count);
+if (PHP_SAPI === 'cli') {
+    if (!isset($argv[1])) {
+        fwrite(STDERR, "Usage: php {$argv[0]} <TwitterDataDir> [dbPath]\n");
+        exit(1);
     }
-    echo $tweets;
-
-    $pdo = null;
-} catch (Exception $e) {
-    $res = ['error' => [
-        'code' => $e->getCode(),
-        'message' => $e->getMessage()
-    ]];
-    http_response_code(500);
-    echo json_encode($res, JSON_UNESCAPED_UNICODE);
+    createDB($argv[1], $argv[2] ?? SQLITE3_DB);
+    exit(0);
 }
 
-function createDB()
-{
-    global $argv;
-    $twitterDataDir = $argv[1];
-    $dbPath = $argv[2] ?? __DIR__ . '/tweets.sqlite3';
+handleRequest();
 
+class ApiException extends RuntimeException {}
+
+function handleRequest(): void
+{
+    header('Content-Type: application/json');
+
+    try {
+        if (!is_file(SQLITE3_DB)) {
+            throw new ApiException('database not found.', 500);
+        }
+
+        $query = getStringParam('query');
+        $targetId = getStringParam('targetId');
+        $isBeforeAfter = $query === null && $targetId !== null;
+        [$since, $until] = parseRange();
+
+        $page = max(1, intval($_GET['page'] ?? 1));
+        $defaultCount = $isBeforeAfter ? DEFAULT_BEFORE_AFTER_COUNT : DEFAULT_COUNT;
+        $count = max($isBeforeAfter ? 0 : 1, intval($_GET['count'] ?? $defaultCount));
+
+        $pdo = new PDO('sqlite:' . SQLITE3_DB);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('PRAGMA query_only = ON');
+        $pdo->exec('PRAGMA mmap_size = 268435456');
+
+        if ($query !== null) {
+            echo searchTweets($pdo, $query, $since, $until, $page, $count);
+        } else if ($targetId !== null) {
+            echo getBeforeAfterTweets($pdo, $targetId, $count);
+        } else {
+            echo getLatestTweets($pdo, $since, $until, $page, $count);
+        }
+    } catch (ApiException $e) {
+        http_response_code($e->getCode());
+        echo json_encode(['error' => ['code' => $e->getCode(), 'message' => $e->getMessage()]], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        error_log((string)$e);
+        http_response_code(500);
+        echo json_encode(['error' => ['code' => 500, 'message' => 'internal server error.']], JSON_UNESCAPED_UNICODE);
+    }
+}
+
+function getStringParam(string $key): ?string
+{
+    if (!isset($_GET[$key])) {
+        return null;
+    }
+    if (!is_string($_GET[$key])) {
+        throw new ApiException("invalid parameter: {$key}", 400);
+    }
+    return $_GET[$key];
+}
+
+function parseTime(?string $str): ?int
+{
+    if ($str === null) {
+        return null;
+    }
+    if (ctype_digit($str)) {
+        return intval($str);
+    }
+    $time = strtotime($str);
+    if ($time === false) {
+        throw new ApiException('unsupported date format.', 400);
+    }
+    return $time;
+}
+
+/** @return array{0: ?int, 1: ?int} [since, until] */
+function parseRange(): array
+{
+    $since = parseTime(getStringParam('since'));
+    $untilRaw = getStringParam('until');
+    $until = parseTime($untilRaw);
+
+    if ($until !== null && !ctype_digit((string)$untilRaw) && date('His', $until) === '000000') {
+        $until += 86400 - 1;
+    }
+    return [$since, $until];
+}
+
+/** @return string[] */
+function parseSearchTerms(string $searchQuery): array
+{
+    $terms = [];
+
+    if (preg_match_all('/"(.+?)"/u', $searchQuery, $m) > 0) {
+        foreach ($m[1] as $phrase) {
+            $phrase = trim($phrase);
+            if ($phrase !== '') {
+                $terms[] = $phrase;
+            }
+        }
+        $searchQuery = preg_replace('/"(.+?)"/u', ' ', $searchQuery);
+    }
+    $searchQuery = str_replace('"', ' ', $searchQuery);
+
+    foreach (preg_split('/[\s　]+/u', $searchQuery, -1, PREG_SPLIT_NO_EMPTY) as $word) {
+        $terms[] = $word;
+    }
+    return $terms;
+}
+
+function runQuery(PDO $pdo, string $sql, array $params = []): PDOStatement
+{
+    $stmt = $pdo->prepare($sql);
+    foreach (array_values($params) as $i => $value) {
+        $stmt->bindValue($i + 1, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $stmt->execute();
+    return $stmt;
+}
+
+function appendRangeConditions(array &$conds, array &$params, ?int $since, ?int $until): void
+{
+    if ($since !== null) {
+        $conds[] = 'created_at >= ?';
+        $params[] = $since;
+    }
+    if ($until !== null) {
+        $conds[] = 'created_at <= ?';
+        $params[] = $until;
+    }
+}
+
+function buildWhere(array $conds): string
+{
+    return $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
+}
+
+function escapeLike(string $s): string
+{
+    return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
+}
+
+function elapsedMs(float $startTime): int
+{
+    return (int)round((microtime(true) - $startTime) * 1000);
+}
+
+function fetchPage(PDO $pdo, string $whereSql, array $params, int $page, int $count): string
+{
+    $startTime = microtime(true);
+
+    $allCount = (int)runQuery($pdo, "SELECT COUNT(*) FROM tweets {$whereSql}", $params)->fetchColumn();
+
+    $offset = ($page - 1) * $count;
+    $jsons = runQuery(
+        $pdo,
+        "SELECT json FROM tweets {$whereSql} ORDER BY id DESC LIMIT ? OFFSET ?",
+        array_merge($params, [$count, $offset])
+    )->fetchAll(PDO::FETCH_COLUMN);
+    $jsons = array_reverse($jsons);
+
+    $rangeStart = max(0, $allCount - $page * $count);
+    $rangeEnd = max(0, $allCount - $offset);
+
+    $procTime = elapsedMs($startTime);
+    return "{\"procTime\":{$procTime},\"allCount\":{$allCount},\"range\":[{$rangeStart},{$rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
+}
+
+function getLatestTweets(PDO $pdo, ?int $since, ?int $until, int $page, int $count): string
+{
+    $conds = [];
+    $params = [];
+    appendRangeConditions($conds, $params, $since, $until);
+    return fetchPage($pdo, buildWhere($conds), $params, $page, $count);
+}
+
+function searchTweets(PDO $pdo, string $searchQuery, ?int $since, ?int $until, int $page, int $count): string
+{
+    if (!mb_check_encoding($searchQuery, 'UTF-8')) {
+        throw new ApiException('query must be valid UTF-8.', 400);
+    }
+
+    $terms = parseSearchTerms($searchQuery);
+    if (!$terms) {
+        throw new ApiException('query is empty.', 400);
+    }
+
+    $conds = [];
+    $params = [];
+
+    $ftsTerms = [];
+    $likeTerms = [];
+    foreach ($terms as $term) {
+        if (mb_strlen($term) >= FTS_MIN_LENGTH) {
+            $ftsTerms[] = '"' . str_replace('"', '""', $term) . '"';
+        } else {
+            $likeTerms[] = $term;
+        }
+    }
+    if ($ftsTerms) {
+        $conds[] = 'id IN (SELECT rowid FROM tweets_fts WHERE tweets_fts MATCH ?)';
+        $params[] = implode(' ', $ftsTerms);
+    }
+    foreach ($likeTerms as $term) {
+        $conds[] = "full_text LIKE ? ESCAPE '\\'";
+        $params[] = '%' . escapeLike($term) . '%';
+    }
+    appendRangeConditions($conds, $params, $since, $until);
+
+    return fetchPage($pdo, buildWhere($conds), $params, $page, $count);
+}
+
+function getBeforeAfterTweets(PDO $pdo, string $targetId, int $count): string
+{
+    if (!ctype_digit($targetId)) {
+        throw new ApiException('invalid targetId.', 400);
+    }
+    $id = (int)$targetId;
+
+    $startTime = microtime(true);
+    $jsons = [];
+    if (runQuery($pdo, 'SELECT 1 FROM tweets WHERE id = ?', [$id])->fetchColumn() !== false) {
+        $sql = 'SELECT json FROM ('
+            . ' SELECT * FROM (SELECT id, json FROM tweets WHERE id < ? ORDER BY id DESC LIMIT ?)'
+            . ' UNION ALL'
+            . ' SELECT * FROM (SELECT id, json FROM tweets WHERE id >= ? ORDER BY id ASC LIMIT ?)'
+            . ') ORDER BY id';
+        $jsons = runQuery($pdo, $sql, [$id, $count, $id, $count + 1])->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    $procTime = elapsedMs($startTime);
+    $allCount = count($jsons);
+    return "{\"procTime\":{$procTime},\"allCount\":{$allCount},\"data\":[" . implode(',', $jsons) . ']}';
+}
+
+function createDB(string $twitterDataDir, string $dbPath): void
+{
     if (!is_dir($twitterDataDir)) {
-        echo 'Please set Twitter Data directory.';
+        echo "Please set Twitter Data directory.\n";
+        exit(1);
+    }
+
+    $files = glob("{$twitterDataDir}/tweet*.js") ?: [];
+    sort($files);
+    if (!$files) {
+        echo "No tweet*.js found in {$twitterDataDir}\n";
         exit(1);
     }
 
     if (file_exists($dbPath)) {
         echo 'Are you sure you want to delete the existing database? ';
-        $input = trim(fgets(STDIN));
+        $input = trim((string)fgets(STDIN));
         if ($input === 'y' || $input === 'yes') {
             unlink($dbPath);
         } else {
@@ -67,24 +275,72 @@ function createDB()
         }
     }
 
-    echo "Loading all tweets...\n";
-    echo '0 tweets';
     $pdo = new PDO("sqlite:{$dbPath}");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->beginTransaction();
-    $pdo->exec('CREATE TABLE temp (json JSON, created_at DATE)');
 
-    $insertSql = 'INSERT INTO temp VALUES (?, ?)';
+    try {
+        $pdo->exec("CREATE VIRTUAL TABLE temp.fts_check USING fts5(x, tokenize='trigram')");
+        $pdo->exec('DROP TABLE temp.fts_check');
+    } catch (PDOException $e) {
+        $version = $pdo->query('SELECT sqlite_version()')->fetchColumn();
+        $pdo = null;
+        @unlink($dbPath);
+        echo "FTS5 with trigram tokenizer is not available (SQLite {$version}, requires 3.34+ with FTS5).\n";
+        exit(1);
+    }
+
+    try {
+        buildDatabase($pdo, $files);
+    } catch (Throwable $e) {
+        $pdo = null;
+        @unlink($dbPath);
+        echo "\nFailed: {$e->getMessage()}\n";
+        exit(1);
+    }
+    $pdo = null;
+    echo "Done!\n";
+}
+
+function buildDatabase(PDO $pdo, array $files): void
+{
+    $pdo->exec('PRAGMA journal_mode = OFF');
+    $pdo->exec('PRAGMA synchronous = OFF');
+
+    echo "Loading all tweets...\n";
+    echo '0 tweets';
+    $pdo->beginTransaction();
+    $pdo->exec(
+        'CREATE TABLE tweets ('
+            . ' id INTEGER PRIMARY KEY,'
+            . ' created_at INTEGER NOT NULL,'
+            . ' full_text TEXT NOT NULL,'
+            . ' json TEXT NOT NULL'
+            . ')'
+    );
+
+    $insert = $pdo->prepare('INSERT INTO tweets (id, created_at, full_text, json) VALUES (?, ?, ?, ?)');
+
     $tweetCount = 0;
-    foreach (glob("{$twitterDataDir}/tweet*.js") as $js) {
+    $skipped = 0;
+    foreach ($files as $js) {
         $rawJson = file_get_contents($js);
-        $rawJson = preg_replace('/window\.YTD\.tweets\.part.+ =/', '', $rawJson);
-        $json = json_decode($rawJson, true);
-        foreach ($json as $j) {
-            $tweet = $j['tweet'];
-            if (isset($tweet['coordinates']['coordinates'])) {
-                $tweet['coordinates']['coordinates'] = array_map('floatval', $tweet['coordinates']['coordinates']);
+        $start = $rawJson === false ? false : strpos($rawJson, '[');
+        if ($start === false) {
+            echo "\nSkip (unexpected format): {$js}\n";
+            continue;
+        }
+        $items = json_decode(substr($rawJson, $start), true, 512, JSON_THROW_ON_ERROR);
+        unset($rawJson);
+
+        foreach ($items as $item) {
+            $tweet = $item['tweet'] ?? null;
+
+            if (!is_array($tweet) || !isset($tweet['id'], $tweet['full_text'], $tweet['created_at'])) {
+                $skipped++;
+                continue;
             }
+
+            unset($tweet['edit_info']);
             if (isset($tweet['entities'])) {
                 $tweet['entities'] = array_filter($tweet['entities'], function ($val) {
                     return is_array($val) && !empty($val);
@@ -93,163 +349,42 @@ function createDB()
                     unset($tweet['entities']);
                 }
             }
-            $stmt = $pdo->prepare($insertSql);
-            $stmt->bindValue(1, json_encode($tweet, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-            $stmt->bindValue(2, strtotime($tweet['created_at']), PDO::PARAM_INT);
-            $stmt->execute();
+
+            $createdAt = strtotime($tweet['created_at']);
+            if ($createdAt === false) {
+                throw new RuntimeException("invalid created_at: {$tweet['created_at']} (id {$tweet['id']})");
+            }
+
+            $insert->bindValue(1, (int)$tweet['id'], PDO::PARAM_INT);
+            $insert->bindValue(2, $createdAt, PDO::PARAM_INT);
+            $insert->bindValue(3, html_entity_decode($tweet['full_text'], ENT_QUOTES | ENT_HTML5, 'UTF-8'), PDO::PARAM_STR);
+            $insert->bindValue(4, json_encode($tweet, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), PDO::PARAM_STR);
+            $insert->execute();
+
             $tweetCount++;
-            echo "\r{$tweetCount} tweets";
-        }
-    }
-
-    echo "\nSorting tweets...\n";
-    $pdo->exec('CREATE TABLE tweets (json JSON, created_at DATE)');
-    $pdo->exec("INSERT INTO tweets SELECT json, created_at FROM temp ORDER BY CAST(JSON_EXTRACT(json, '$.id') AS INTEGER) ASC");
-    $pdo->exec('DROP TABLE temp');
-    $pdo->commit();
-    echo "Optimizing database...\n";
-    $pdo->exec('VACUUM');
-    $pdo = null;
-    echo "Done!\n";
-}
-
-function getLatestTweets(int $page, int $count): string
-{
-    $offset = $page * $count;
-    $sql = 'WITH targetRange AS (SELECT ROWID, json FROM tweets ' . getTargetRangeWhere() . '), ' .
-        'counts AS (SELECT COUNT(json) AS allCount FROM targetRange) ' .
-        "SELECT json, allCount FROM targetRange, counts LIMIT (SELECT allCount FROM counts LIMIT 1) - {$offset}, {$count}";
-    $dbData = getDBData($sql);
-    $procTime = $dbData['procTime'];
-    $allCount = intval($dbData['allCount'][0]);
-    $rangeStart = $allCount - $offset;
-    $rangeEnd = $rangeStart + $count;
-    negative0($rangeStart);
-    negative0($rangeEnd);
-    if ($rangeStart === 0 && $rangeEnd === 0) {
-        $dbData['json'] = [];
-    } else if ($rangeEnd < $count) {
-        $dbData['json'] = array_slice($dbData['json'], 0, $rangeEnd);
-    }
-    return "{\"procTime\":{$procTime},\"allCount\":{$allCount},\"range\":[{$rangeStart},{$rangeEnd}],\"data\":[" . implode(',', $dbData['json']) . ']}';
-}
-
-function searchTweets(string $searchQuery, int $page, int $count): string
-{
-    $searches = [];
-    if (preg_match_all('/"(.+?)"/', $searchQuery, $m) === 1) {
-        foreach ($m[1] as $v) {
-            $searches[] = $v;
-            $searchQuery = str_replace("\"$v\"", '', $searchQuery);
-        }
-    }
-
-    foreach (preg_split('/( |　)+/', $searchQuery) as $v) {
-        if (mb_strlen($v) !== 0) {
-            $searches[] = $v;
-        }
-    }
-    $searches = array_map(function ($val) {
-        $val = htmlspecialchars($val, ENT_NOQUOTES);
-        return "%{$val}%";
-    }, $searches);
-
-    $sql = 'SELECT json FROM tweets WHERE ';
-    $sql .= str_repeat("JSON_EXTRACT(json, '$.full_text') LIKE ? AND ", count($searches));
-    $sql .= getTargetRangeWhere(false);
-    $sql = preg_replace('/AND $/', '', $sql);
-
-    $dbData = getDBData($sql, ...$searches);
-    $jsons = $dbData['json'] ?? [];
-    $procTime = $dbData['procTime'];
-    $allCount = count($jsons);
-    $rangeStart = $allCount - $page * $count;
-    $rangeEnd = $rangeStart + $count;
-    negative0($rangeStart);
-    negative0($rangeEnd);
-    if ($rangeStart === 0 && $rangeEnd === 0) {
-        $jsons = [];
-    } else {
-        $count = ($rangeEnd < $count) ? $rangeEnd : $count;
-        $jsons = array_slice($jsons, $rangeStart, $count);
-    }
-    return "{\"procTime\":{$procTime},\"allCount\":{$allCount},\"range\":[{$rangeStart},{$rangeEnd}],\"data\":[" . implode(',', $jsons) . ']}';
-}
-
-function getTargetRangeWhere(bool $includeWhere = true): string
-{
-    function toUnixTime($str): int
-    {
-        if (is_null($str)) {
-            return -1;
-        }
-        if (preg_match('/^[0-9]+$/', $str) === 1) {
-            return intval($str);
-        } else {
-            $decodeTime = strtotime($str);
-            if ($decodeTime === false) {
-                http_response_code(400);
-                echo json_encode(['error' => [
-                    'code' => 400,
-                    'message' => 'unsupported date format.'
-                ]]);
-                exit(1);
-            } else {
-                return $decodeTime;
+            if ($tweetCount % 1000 === 0) {
+                echo "\r{$tweetCount} tweets";
             }
         }
+        unset($items);
     }
-    $since = toUnixTime($_GET['since'] ?? null);
-    $until = toUnixTime($_GET['until'] ?? null);
-    if ($until >= 0) {
-        $untilOnlyDate = date('His', $until) === '000000';
-        if ($untilOnlyDate) {
-            $until += 86400 - 1;
-        }
+    echo "\r{$tweetCount} tweets";
+    if ($skipped > 0) {
+        echo " ({$skipped} entries skipped)";
     }
-    $prefix = $includeWhere ? 'WHERE' : '';
-    if ($since >= 0 && $until >= 0) {
-        return "$prefix created_at BETWEEN $since AND $until";
-    } else if ($since >= 0) {
-        return "$prefix created_at >= $since";
-    } else if ($until >= 0) {
-        return "$prefix created_at <= $until";
-    } else {
-        return '';
-    }
-}
+    echo "\n";
 
-function getBeforeAfterTweets(string $targetId, int $count): string
-{
-    $sql = "WITH targetRow AS (SELECT ROWID FROM tweets WHERE JSON_EXTRACT(json, '$.id') = ?) " .
-        'SELECT tweets.json FROM tweets, targetRow ' .
-        "WHERE tweets.ROWID BETWEEN targetRow.ROWID - {$count} AND targetRow.ROWID + {$count}";
-    $dbData = getDBData($sql, $targetId);
-    $allCount = count($dbData['json']);
-    return '{"procTime":' . $dbData['procTime'] . ',"allCount":' . $allCount . ',"data":[' . implode(',', $dbData['json']) . ']}';
-}
+    echo "Creating indexes...\n";
+    $pdo->exec('CREATE INDEX idx_tweets_created_at ON tweets (created_at)');
+    $pdo->exec(
+        'CREATE VIRTUAL TABLE tweets_fts USING fts5('
+            . "full_text, content='tweets', content_rowid='id', tokenize='trigram')"
+    );
+    $pdo->exec("INSERT INTO tweets_fts(tweets_fts) VALUES ('rebuild')");
+    $pdo->commit();
 
-function getDBData(string $sql, string ...$bindArgs): array
-{
-    global $pdo;
-    $startTime = microtime(true);
-    $data = [];
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($bindArgs);
-    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if (!empty($result)) {
-        foreach (array_keys($result[0]) as $k) {
-            $data[$k] = array_column($result, $k);
-        }
-    }
-    $procTime = microtime(true) - $startTime;
-    $data['procTime'] = round($procTime * 1000);
-    return $data;
-}
+    echo "Compacting database...\n";
+    $pdo->exec('VACUUM');
 
-function negative0(int &$num)
-{
-    if ($num < 0) {
-        $num = 0;
-    }
+    $pdo->exec('ANALYZE');
 }
