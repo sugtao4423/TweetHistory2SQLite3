@@ -103,26 +103,39 @@ function parseRange(): array
     return [$since, $until];
 }
 
-/** @return string[] */
+/** @return array{0: string[], 1: string[]} [include, exclude] */
 function parseSearchTerms(string $searchQuery): array
 {
-    $terms = [];
+    $include = [];
+    $exclude = [];
 
-    if (preg_match_all('/"(.+?)"/u', $searchQuery, $m) > 0) {
-        foreach ($m[1] as $phrase) {
+    if (preg_match_all('/(-?)"(.+?)"/u', $searchQuery, $m, PREG_SET_ORDER) > 0) {
+        foreach ($m as [, $minus, $phrase]) {
             $phrase = trim($phrase);
-            if ($phrase !== '') {
-                $terms[] = $phrase;
+            if ($phrase === '') {
+                continue;
+            }
+            if ($minus === '-') {
+                $exclude[] = $phrase;
+            } else {
+                $include[] = $phrase;
             }
         }
-        $searchQuery = preg_replace('/"(.+?)"/u', ' ', $searchQuery);
+        $searchQuery = preg_replace('/-?"(.+?)"/u', ' ', $searchQuery);
     }
     $searchQuery = str_replace('"', ' ', $searchQuery);
 
     foreach (preg_split('/[\s　]+/u', $searchQuery, -1, PREG_SPLIT_NO_EMPTY) as $word) {
-        $terms[] = $word;
+        if ($word[0] === '-') {
+            $word = substr($word, 1);
+            if ($word !== '') {
+                $exclude[] = $word;
+            }
+        } else {
+            $include[] = $word;
+        }
     }
-    return $terms;
+    return [$include, $exclude];
 }
 
 function runQuery(PDO $pdo, string $sql, array $params = []): PDOStatement
@@ -133,6 +146,24 @@ function runQuery(PDO $pdo, string $sql, array $params = []): PDOStatement
     }
     $stmt->execute();
     return $stmt;
+}
+
+function appendTermConditions(array &$conds, array &$params, array $terms, bool $negate): void
+{
+    $not = $negate ? 'NOT ' : '';
+    $ftsTerms = [];
+    foreach ($terms as $term) {
+        if (mb_strlen($term) >= FTS_MIN_LENGTH) {
+            $ftsTerms[] = '"' . str_replace('"', '""', $term) . '"';
+        } else {
+            $conds[] = "full_text {$not}LIKE ? ESCAPE '\\'";
+            $params[] = '%' . escapeLike($term) . '%';
+        }
+    }
+    if ($ftsTerms) {
+        $conds[] = "id {$not}IN (SELECT rowid FROM tweets_fts WHERE tweets_fts MATCH ?)";
+        $params[] = implode($negate ? ' OR ' : ' ', $ftsTerms);
+    }
 }
 
 function appendRangeConditions(array &$conds, array &$params, ?int $since, ?int $until): void
@@ -197,31 +228,15 @@ function searchTweets(PDO $pdo, string $searchQuery, ?int $since, ?int $until, i
         throw new ApiException('query must be valid UTF-8.', 400);
     }
 
-    $terms = parseSearchTerms($searchQuery);
-    if (!$terms) {
+    [$include, $exclude] = parseSearchTerms($searchQuery);
+    if (!$include && !$exclude) {
         throw new ApiException('query is empty.', 400);
     }
 
     $conds = [];
     $params = [];
-
-    $ftsTerms = [];
-    $likeTerms = [];
-    foreach ($terms as $term) {
-        if (mb_strlen($term) >= FTS_MIN_LENGTH) {
-            $ftsTerms[] = '"' . str_replace('"', '""', $term) . '"';
-        } else {
-            $likeTerms[] = $term;
-        }
-    }
-    if ($ftsTerms) {
-        $conds[] = 'id IN (SELECT rowid FROM tweets_fts WHERE tweets_fts MATCH ?)';
-        $params[] = implode(' ', $ftsTerms);
-    }
-    foreach ($likeTerms as $term) {
-        $conds[] = "full_text LIKE ? ESCAPE '\\'";
-        $params[] = '%' . escapeLike($term) . '%';
-    }
+    appendTermConditions($conds, $params, $include, false);
+    appendTermConditions($conds, $params, $exclude, true);
     appendRangeConditions($conds, $params, $since, $until);
 
     return fetchPage($pdo, buildWhere($conds), $params, $page, $count);
