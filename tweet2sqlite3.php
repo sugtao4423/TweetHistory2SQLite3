@@ -372,7 +372,7 @@ function buildDatabase(PDO $pdo, array $files): void
 
             $insert->bindValue(1, (int)$tweet['id'], PDO::PARAM_INT);
             $insert->bindValue(2, $createdAt, PDO::PARAM_INT);
-            $insert->bindValue(3, html_entity_decode($tweet['full_text'], ENT_QUOTES | ENT_HTML5, 'UTF-8'), PDO::PARAM_STR);
+            $insert->bindValue(3, normalizeSearchText($tweet), PDO::PARAM_STR);
             $insert->bindValue(4, json_encode($tweet, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), PDO::PARAM_STR);
             $insert->execute();
 
@@ -402,4 +402,18 @@ function buildDatabase(PDO $pdo, array $files): void
     $pdo->exec('VACUUM');
 
     $pdo->exec('ANALYZE');
+}
+
+function normalizeSearchText(array $tweet): string
+{
+    $text = $tweet['full_text'];
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    if (isset($tweet['entities']['urls'])) {
+        foreach ($tweet['entities']['urls'] as $url) {
+            if (isset($url['url'], $url['expanded_url'])) {
+                $text = str_replace($url['url'], $url['expanded_url'], $text);
+            }
+        }
+    }
+    return $text;
 }
