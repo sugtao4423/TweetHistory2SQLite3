@@ -148,47 +148,65 @@ function runQuery(PDO $pdo, string $sql, array $params = []): PDOStatement
     return $stmt;
 }
 
-function resolveIdRange(PDO $pdo, ?int $since, ?int $until): array
+/** @return ?array{0: int, 1: int} [lo, hi] */
+function resolveIdRange(PDO $pdo, ?int $since, ?int $until): ?array
 {
     $lo = 0;
     $hi = PHP_INT_MAX;
     if ($since !== null) {
-        $lo = (int)runQuery($pdo, 'SELECT id FROM tweets WHERE created_at >= ? ORDER BY created_at, id LIMIT 1', [$since])->fetchColumn();
+        $id = runQuery($pdo, 'SELECT id FROM tweets WHERE created_at >= ? ORDER BY created_at, id LIMIT 1', [$since])->fetchColumn();
+        if ($id === false) {
+            return null;
+        }
+        $lo = (int)$id;
     }
     if ($until !== null) {
-        $hi = (int)runQuery($pdo, 'SELECT id FROM tweets WHERE created_at <= ? ORDER BY created_at DESC, id DESC LIMIT 1', [$until])->fetchColumn();
+        $id = runQuery($pdo, 'SELECT id FROM tweets WHERE created_at <= ? ORDER BY created_at DESC, id DESC LIMIT 1', [$until])->fetchColumn();
+        if ($id === false) {
+            return null;
+        }
+        $hi = (int)$id;
     }
     return [$lo, $hi];
 }
 
-function appendTermConditions(array &$conds, array &$params, array $terms, bool $negate): void
+/** @return array{0: ?string, 1: string[], 2: array} [match, conds, condParams] */
+function buildSearchSpec(array $include, array $exclude): array
 {
-    $not = $negate ? 'NOT ' : '';
-    $ftsTerms = [];
-    foreach ($terms as $term) {
-        if (mb_strlen($term) >= FTS_MIN_LENGTH) {
-            $ftsTerms[] = '"' . str_replace('"', '""', $term) . '"';
-        } else {
-            $conds[] = "full_text {$not}LIKE ? ESCAPE '\\'";
-            $params[] = '%' . escapeLike($term) . '%';
+    $conds = [];
+    $condParams = [];
+    $includeFts = [];
+    $excludeFts = [];
+
+    foreach ([false, true] as $negate) {
+        $not = $negate ? 'NOT ' : '';
+        $terms = $negate ? $exclude : $include;
+        foreach ($terms as $term) {
+            if (mb_strlen($term) >= FTS_MIN_LENGTH) {
+                $quoted = '"' . str_replace('"', '""', $term) . '"';
+                if ($negate) {
+                    $excludeFts[] = $quoted;
+                } else {
+                    $includeFts[] = $quoted;
+                }
+            } else {
+                $conds[] = "tweets.full_text {$not}LIKE ? ESCAPE '\\'";
+                $condParams[] = '%' . escapeLike($term) . '%';
+            }
         }
     }
-    if ($ftsTerms) {
-        $conds[] = "id {$not}IN (SELECT rowid FROM tweets_fts WHERE tweets_fts MATCH ?)";
-        $params[] = implode($negate ? ' OR ' : ' ', $ftsTerms);
-    }
-}
 
-function appendRangeConditions(array &$conds, array &$params, ?int $since, ?int $until): void
-{
-    if ($since !== null) {
-        $conds[] = 'created_at >= ?';
-        $params[] = $since;
+    $match = null;
+    if ($includeFts) {
+        $match = implode(' ', $includeFts);
+        if ($excludeFts) {
+            $match = '(' . $match . ') NOT (' . implode(' OR ', $excludeFts) . ')';
+        }
+    } else if ($excludeFts) {
+        $conds[] = 'tweets.id NOT IN (SELECT rowid FROM tweets_fts WHERE tweets_fts MATCH ?)';
+        $condParams[] = implode(' OR ', $excludeFts);
     }
-    if ($until !== null) {
-        $conds[] = 'created_at <= ?';
-        $params[] = $until;
-    }
+    return [$match, $conds, $condParams];
 }
 
 function escapeLike(string $s): string
@@ -196,38 +214,64 @@ function escapeLike(string $s): string
     return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
 }
 
-function buildWhere(array $conds): string
-{
-    return $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
-}
-
 function elapsedMs(float $startTime): int
 {
     return (int)round((microtime(true) - $startTime) * 1000);
 }
 
-function fetchPage(PDO $pdo, array $conds, array $params, ?int $since, ?int $until, int $page, int $count): string
+function fetchPage(PDO $pdo, ?string $match, array $conds, array $condParams, ?int $since, ?int $until, int $page, int $count): string
 {
     $startTime = microtime(true);
 
-    $countConds = $conds;
-    $countParams = $params;
-    appendRangeConditions($countConds, $countParams, $since, $until);
-    $allCount = (int)runQuery($pdo, 'SELECT COUNT(*) FROM tweets ' . buildWhere($countConds), $countParams)->fetchColumn();
-
+    $allCount = 0;
     $offset = ($page - 1) * $count;
     $jsons = [];
-    if ($offset < $allCount) {
-        [$lo, $hi] = resolveIdRange($pdo, $since, $until);
-        $conds[] = 'id BETWEEN ? AND ?';
-        $params[] = $lo;
-        $params[] = $hi;
-        $jsons = runQuery(
-            $pdo,
-            'SELECT json FROM tweets ' . buildWhere($conds) . ' ORDER BY id DESC LIMIT ? OFFSET ?',
-            array_merge($params, [$count, $offset])
-        )->fetchAll(PDO::FETCH_COLUMN);
-        $jsons = array_reverse($jsons);
+
+    $idRange = resolveIdRange($pdo, $since, $until);
+    if ($idRange !== null) {
+        [$lo, $hi] = $idRange;
+
+        if ($match !== null) {
+            $from = 'tweets_fts JOIN tweets ON tweets.id = tweets_fts.rowid';
+            $countFrom = $conds ? $from : 'tweets_fts';
+            $idCol = 'tweets_fts.rowid';
+            $where = $countWhere = ['tweets_fts MATCH ?', 'tweets_fts.rowid BETWEEN ? AND ?'];
+            $params = $countParams = [$match, $lo, $hi];
+        } else {
+            $from = $countFrom = 'tweets';
+            $idCol = 'tweets.id';
+            $where = $countWhere = [];
+            $params = $countParams = [];
+            if ($since !== null || $until !== null) {
+                $where[] = 'tweets.id BETWEEN ? AND ?';
+                $params = [$lo, $hi];
+            }
+            if ($since !== null) {
+                $countWhere[] = 'tweets.created_at >= ?';
+                $countParams[] = $since;
+            }
+            if ($until !== null) {
+                $countWhere[] = 'tweets.created_at <= ?';
+                $countParams[] = $until;
+            }
+        }
+        $where = array_merge($where, $conds);
+        $countWhere = array_merge($countWhere, $conds);
+        $params = array_merge($params, $condParams);
+        $countParams = array_merge($countParams, $condParams);
+        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        $countWhereSql = $countWhere ? 'WHERE ' . implode(' AND ', $countWhere) : '';
+
+        $allCount = (int)runQuery($pdo, "SELECT COUNT(*) FROM {$countFrom} {$countWhereSql}", $countParams)->fetchColumn();
+
+        if ($offset < $allCount) {
+            $jsons = runQuery(
+                $pdo,
+                "SELECT tweets.json FROM {$from} {$whereSql} ORDER BY {$idCol} DESC LIMIT ? OFFSET ?",
+                array_merge($params, [$count, $offset])
+            )->fetchAll(PDO::FETCH_COLUMN);
+            $jsons = array_reverse($jsons);
+        }
     }
 
     $rangeStart = max(0, $allCount - $page * $count);
@@ -239,7 +283,7 @@ function fetchPage(PDO $pdo, array $conds, array $params, ?int $since, ?int $unt
 
 function getLatestTweets(PDO $pdo, ?int $since, ?int $until, int $page, int $count): string
 {
-    return fetchPage($pdo, [], [], $since, $until, $page, $count);
+    return fetchPage($pdo, null, [], [], $since, $until, $page, $count);
 }
 
 function searchTweets(PDO $pdo, string $searchQuery, ?int $since, ?int $until, int $page, int $count): string
@@ -252,14 +296,8 @@ function searchTweets(PDO $pdo, string $searchQuery, ?int $since, ?int $until, i
     if (!$include && !$exclude) {
         throw new ApiException('query is empty.', 400);
     }
-
-    $conds = [];
-    $params = [];
-    appendTermConditions($conds, $params, $include, false);
-    appendTermConditions($conds, $params, $exclude, true);
-    appendRangeConditions($conds, $params, $since, $until);
-
-    return fetchPage($pdo, $conds, $params, $since, $until, $page, $count);
+    [$match, $conds, $condParams] = buildSearchSpec($include, $exclude);
+    return fetchPage($pdo, $match, $conds, $condParams, $since, $until, $page, $count);
 }
 
 function getBeforeAfterTweets(PDO $pdo, string $targetId, int $count): string
