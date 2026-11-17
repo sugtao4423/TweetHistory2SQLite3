@@ -1,36 +1,36 @@
 # TweetHistory2SQLite3
-TwitterからDLできる「Twitterデータ」のツイートたちをSQLite3化する
+Twitter から DL できる「Twitterデータ」のツイートたちを SQLite3 化する。
 
-ツイート履歴のDLができなくなったため、従来のものが使えなくなった。  
-`retweeted_status`や`user`オブジェクトが含まれていない「Twitterデータ(笑)」だけどこれしかないので使わざるを得ない。
+ツイート履歴の DL ができなくなったため、従来のものが使えなくなった。  
+`retweeted_status` や `user` オブジェクトが含まれていない「Twitterデータ(笑)」だがこれしかないので使わざるを得ない。
 
-## DBの作成
+## DB 作成
 ```
 php tweet2sqlite3.php /path/to/TwitterDataDirectory [/path/to/database]
 ```
 
 ## ツイート取得
 ```
-/tweet2sqlite3.php
+GET /tweet2sqlite3.php
 ```
 
 ### GET Params
-* NONE: 最新の50件を取得
+* NONE: 最新の 50 件を取得
 * `page`: ページ
 * `count`: 数
 * `query`: ツイート本文から検索
-* `targetId`: 対象ツイートIDの前後のツイートを取得
-    - デフォルトでは前後5件ずつ計11ツイートの取得
-    - `count`で件数変更可能
+* `targetId`: 対象のツイート ID の前後のツイートを取得
+  - デフォルトでは前後 5 件ずつ、計 11 ツイートの取得
+  - `count` で件数変更可能
 * `since`: 日時から
 * `until`: 日時まで
 
 ### 併用
-AB | page | count | query | targetId | since | until
+\ | page | count | query | targetId | since | until
 --- | :---: | :---: | :---: | :---: | :---: | :---:
-page | \ | ✔ | ✔ | | ✔ | ✔
-count | ✔ | \ | ✔ | ✔ | ✔ | ✔
-query | ✔ | ✔ | \ | | ✔ | ✔
-targetId | | ✔ | | \ | |
-since | ✔ | ✔ | ✔ | | \ | ✔
-until | ✔ | ✔ | ✔ | | ✔ | \
+page | \ | ✅ | ✅ | | ✅ | ✅
+count | ✅ | \ | ✅ | ✅ | ✅ | ✅
+query | ✅ | ✅ | \ | | ✅ | ✅
+targetId | | ✅ | | \ | |
+since | ✅ | ✅ | ✅ | | \ | ✅
+until | ✅ | ✅ | ✅ | | ✅ | \
